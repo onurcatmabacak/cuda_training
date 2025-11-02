@@ -1,0 +1,174 @@
+Begin optimization report for: die
+=================================================================
+
+Begin optimization report for: main
+
+LOOP BEGIN at matmul_c11_intel_mkl.c (25, 5)
+    remark #15527: Loop was not vectorized: function call to  cannot be vectorized
+    remark #25438: Loop unrolled without remainder by 8
+LOOP END
+
+LOOP BEGIN at matmul_c11_intel_mkl.c (25, 5)
+    remark #15527: Loop was not vectorized: function call to  cannot be vectorized
+    remark #25438: Loop unrolled without remainder by 8
+LOOP END
+
+LOOP BEGIN at matmul_c11_intel_mkl.c (79, 5)
+    remark #15527: Loop was not vectorized: function call to  cannot be vectorized
+    remark #25436: Loop completely unrolled by 10
+
+    LOOP BEGIN at matmul_c11_intel_mkl.c (31, 5)
+    LOOP END
+LOOP END
+=================================================================
+
+---- Begin Inlining Report ----
+Option Values:
+  inline-threshold: 225
+  inlinehint-threshold: 325
+  inlinecold-threshold: 45
+  inlineoptsize-threshold: 15
+
+DEAD STATIC FUNC: llvm.ssa.copy.f64
+
+DEAD STATIC FUNC: llvm.ssa.copy.i32
+
+DEAD STATIC FUNC: llvm.ssa.copy.i64
+
+COMPILE FUNC: die
+   -> EXTERN: fprintf matmul_c11_intel_mkl.c(12,5)
+   -> EXTERN: exit matmul_c11_intel_mkl.c(13,5)
+
+COMPILE FUNC: main
+   -> die matmul_c11_intel_mkl.c(19,13) (55>1 [EE:20>0])
+   -> die matmul_c11_intel_mkl.c(19,13) (55>1 [EE:20>0])
+   -> die matmul_c11_intel_mkl.c(19,13) (55>1 [EE:20>0])
+   -> EXTERN: time matmul_c11_intel_mkl.c(53,21)
+   -> EXTERN: srand matmul_c11_intel_mkl.c(53,5)
+   -> EXTERN: strtol stdlib.h(483,16)
+   -> EXTERN: MKL_Set_Dynamic matmul_c11_intel_mkl.c(61,5)
+   -> EXTERN: MKL_Set_Num_Threads matmul_c11_intel_mkl.c(62,5)
+   -> EXTERN: omp_set_num_threads matmul_c11_intel_mkl.c(63,5)
+   -> EXTERN: printf matmul_c11_intel_mkl.c(65,5)
+   -> EXTERN: puts matmul_c11_intel_mkl.c(66,5)
+   -> EXTERN: MKL_malloc matmul_c11_intel_mkl.c(18,27)
+   -> EXTERN: MKL_malloc matmul_c11_intel_mkl.c(18,27)
+   -> EXTERN: MKL_malloc matmul_c11_intel_mkl.c(18,27)
+   -> EXTERN: puts matmul_c11_intel_mkl.c(72,5)
+   -> DELETE: rand matmul_c11_intel_mkl.c(26,24)
+   -> DELETE: rand matmul_c11_intel_mkl.c(26,24)
+   -> DELETE: printf matmul_c11_intel_mkl.c(76,5)
+   -> DELETE: llvm.memset.p0.i64 matmul_c11_intel_mkl.c(32,14)
+   -> DELETE: omp_get_wtime matmul_c11_intel_mkl.c(82,29)
+   -> DELETE: cblas_dgemm matmul_c11_intel_mkl.c(37,5)
+   -> DELETE: omp_get_wtime matmul_c11_intel_mkl.c(84,26)
+   -> EXTERN: printf matmul_c11_intel_mkl.c(92,5)
+   -> EXTERN: MKL_free matmul_c11_intel_mkl.c(94,5)
+   -> EXTERN: MKL_free matmul_c11_intel_mkl.c(95,5)
+   -> EXTERN: MKL_free matmul_c11_intel_mkl.c(96,5)
+   -> EXTERN: rand matmul_c11_intel_mkl.c(26,24)
+   -> EXTERN: rand matmul_c11_intel_mkl.c(26,24)
+   -> EXTERN: rand matmul_c11_intel_mkl.c(26,24)
+   -> EXTERN: rand matmul_c11_intel_mkl.c(26,24)
+   -> EXTERN: rand matmul_c11_intel_mkl.c(26,24)
+   -> EXTERN: rand matmul_c11_intel_mkl.c(26,24)
+   -> EXTERN: rand matmul_c11_intel_mkl.c(26,24)
+   -> EXTERN: rand matmul_c11_intel_mkl.c(26,24)
+   -> EXTERN: rand matmul_c11_intel_mkl.c(26,24)
+   -> EXTERN: rand matmul_c11_intel_mkl.c(26,24)
+   -> EXTERN: rand matmul_c11_intel_mkl.c(26,24)
+   -> EXTERN: rand matmul_c11_intel_mkl.c(26,24)
+   -> EXTERN: rand matmul_c11_intel_mkl.c(26,24)
+   -> EXTERN: rand matmul_c11_intel_mkl.c(26,24)
+   -> EXTERN: rand matmul_c11_intel_mkl.c(26,24)
+   -> EXTERN: rand matmul_c11_intel_mkl.c(26,24)
+   -> EXTERN: printf matmul_c11_intel_mkl.c(76,5)
+   -> llvm.memset.p0.i64 matmul_c11_intel_mkl.c(32,14)
+   -> EXTERN: omp_get_wtime matmul_c11_intel_mkl.c(82,29)
+   -> EXTERN: cblas_dgemm matmul_c11_intel_mkl.c(37,5)
+   -> EXTERN: omp_get_wtime matmul_c11_intel_mkl.c(84,26)
+   -> llvm.memset.p0.i64 matmul_c11_intel_mkl.c(32,14)
+   -> EXTERN: omp_get_wtime matmul_c11_intel_mkl.c(82,29)
+   -> EXTERN: cblas_dgemm matmul_c11_intel_mkl.c(37,5)
+   -> EXTERN: omp_get_wtime matmul_c11_intel_mkl.c(84,26)
+   -> llvm.memset.p0.i64 matmul_c11_intel_mkl.c(32,14)
+   -> EXTERN: omp_get_wtime matmul_c11_intel_mkl.c(82,29)
+   -> EXTERN: cblas_dgemm matmul_c11_intel_mkl.c(37,5)
+   -> EXTERN: omp_get_wtime matmul_c11_intel_mkl.c(84,26)
+   -> llvm.memset.p0.i64 matmul_c11_intel_mkl.c(32,14)
+   -> EXTERN: omp_get_wtime matmul_c11_intel_mkl.c(82,29)
+   -> EXTERN: cblas_dgemm matmul_c11_intel_mkl.c(37,5)
+   -> EXTERN: omp_get_wtime matmul_c11_intel_mkl.c(84,26)
+   -> llvm.memset.p0.i64 matmul_c11_intel_mkl.c(32,14)
+   -> EXTERN: omp_get_wtime matmul_c11_intel_mkl.c(82,29)
+   -> EXTERN: cblas_dgemm matmul_c11_intel_mkl.c(37,5)
+   -> EXTERN: omp_get_wtime matmul_c11_intel_mkl.c(84,26)
+   -> llvm.memset.p0.i64 matmul_c11_intel_mkl.c(32,14)
+   -> EXTERN: omp_get_wtime matmul_c11_intel_mkl.c(82,29)
+   -> EXTERN: cblas_dgemm matmul_c11_intel_mkl.c(37,5)
+   -> EXTERN: omp_get_wtime matmul_c11_intel_mkl.c(84,26)
+   -> llvm.memset.p0.i64 matmul_c11_intel_mkl.c(32,14)
+   -> EXTERN: omp_get_wtime matmul_c11_intel_mkl.c(82,29)
+   -> EXTERN: cblas_dgemm matmul_c11_intel_mkl.c(37,5)
+   -> EXTERN: omp_get_wtime matmul_c11_intel_mkl.c(84,26)
+   -> llvm.memset.p0.i64 matmul_c11_intel_mkl.c(32,14)
+   -> EXTERN: omp_get_wtime matmul_c11_intel_mkl.c(82,29)
+   -> EXTERN: cblas_dgemm matmul_c11_intel_mkl.c(37,5)
+   -> EXTERN: omp_get_wtime matmul_c11_intel_mkl.c(84,26)
+   -> llvm.memset.p0.i64 matmul_c11_intel_mkl.c(32,14)
+   -> EXTERN: omp_get_wtime matmul_c11_intel_mkl.c(82,29)
+   -> EXTERN: cblas_dgemm matmul_c11_intel_mkl.c(37,5)
+   -> EXTERN: omp_get_wtime matmul_c11_intel_mkl.c(84,26)
+   -> llvm.memset.p0.i64 matmul_c11_intel_mkl.c(32,14)
+   -> EXTERN: omp_get_wtime matmul_c11_intel_mkl.c(82,29)
+   -> EXTERN: cblas_dgemm matmul_c11_intel_mkl.c(37,5)
+   -> EXTERN: omp_get_wtime matmul_c11_intel_mkl.c(84,26)
+   -> DELETE: llvm.ssa.copy.i64 matmul_c11_intel_mkl.c(25,36)
+   -> DELETE: llvm.ssa.copy.i64
+   -> DELETE: llvm.ssa.copy.i64 matmul_c11_intel_mkl.c(25,36)
+   -> DELETE: llvm.ssa.copy.f64
+   -> DELETE: llvm.ssa.copy.i32
+   -> DELETE: llvm.ssa.copy.i32 matmul_c11_intel_mkl.c(79,38)
+
+---- End Inlining Report ------
+Register allocation report for: die
+FUNCTION BEGIN
+
+Hardware registers used
+ Reserved : 3 [ rip rsp ssp  ]
+ Available : 33 [ rbp rbx rcx r8 r9 r10 r11 r12 r13 r14 r15 zmm0 zmm1 zmm2 zmm3 zmm4 zmm5 zmm6 zmm7 zmm8 zmm9 zmm10 zmm11 zmm12 zmm13 zmm14 zmm15 k0_k1 k2_k3 k4_k5 k6_k7 tmm4_tmm5 tmm6_tmm7  ]
+ Callee Saved : 0 [  ]
+ Assigned : 5 [ eflags rax rdi rdx rsi  ]
+
+Routine stack 
+ Variables : 0 Bytes
+   Read Count : 0
+   Write Count : 0
+ Spills : 0 Bytes
+   Read Count : 0
+   Write Count : 0
+
+FUNCTION END
+Register allocation report for: main
+FUNCTION BEGIN
+ 20 reloads 20 spills 
+ LOOP1 BEGIN at (matmul_c11_intel_mkl.c:25:5 @[ matmul_c11_intel_mkl.c:73:5 ])
+ LOOP1 END
+ LOOP1 BEGIN at (matmul_c11_intel_mkl.c:25:5 @[ matmul_c11_intel_mkl.c:74:5 ])
+ LOOP1 END
+
+Hardware registers used
+ Reserved : 4 [ rsp ssp rip mxcsr  ]
+ Available : 19 [ r10 r11 zmm5 zmm6 zmm7 zmm8 zmm9 zmm10 zmm11 zmm12 zmm13 zmm14 zmm15 k0_k1 k2_k3 k4_k5 k6_k7 tmm4_tmm5 tmm6_tmm7  ]
+ Callee Saved : 5 [ rbx r12 r13 r14 r15  ]
+ Assigned : 19 [ eflags rax rbp rbx rcx rdi rdx rsi r8 r9 r12 r13 r14 r15 zmm0 zmm1 zmm2 zmm3 zmm4  ]
+
+Routine stack 
+ Variables : 144 Bytes
+   Read Count : 20
+   Write Count : 20
+ Spills : 160 Bytes
+   Read Count : 20
+   Write Count : 20
+
+FUNCTION END

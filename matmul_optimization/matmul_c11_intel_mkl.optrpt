@@ -1,0 +1,97 @@
+Begin optimization report for: die
+=================================================================
+
+Begin optimization report for: main
+
+LOOP BEGIN at matmul_c11_intel_mkl.c (25, 5)
+LOOP END
+
+LOOP BEGIN at matmul_c11_intel_mkl.c (25, 5)
+LOOP END
+
+LOOP BEGIN at matmul_c11_intel_mkl.c (79, 5)
+
+    LOOP BEGIN at matmul_c11_intel_mkl.c (31, 5)
+    LOOP END
+LOOP END
+=================================================================
+
+Begin optimization report for: atoi
+=================================================================
+
+Begin optimization report for: alloc_matrix
+=================================================================
+
+Begin optimization report for: fill_random
+
+LOOP BEGIN at matmul_c11_intel_mkl.c (25, 5)
+LOOP END
+=================================================================
+
+Begin optimization report for: zero_matrix
+
+LOOP BEGIN at matmul_c11_intel_mkl.c (31, 5)
+LOOP END
+=================================================================
+
+Begin optimization report for: multiply_matrices_mkl
+=================================================================
+
+---- Begin Inlining Report ----
+Option Values:
+  inline-threshold: 225
+  inlinehint-threshold: 325
+  inlinecold-threshold: 45
+  inlineoptsize-threshold: 15
+
+DEAD STATIC FUNC: alloc_matrix
+
+DEAD STATIC FUNC: atoi
+
+DEAD STATIC FUNC: fill_random
+
+DEAD STATIC FUNC: multiply_matrices_mkl
+
+DEAD STATIC FUNC: zero_matrix
+
+COMPILE FUNC: die
+   -> EXTERN: fprintf matmul_c11_intel_mkl.c(12,5)
+   -> EXTERN: exit matmul_c11_intel_mkl.c(13,5)
+
+COMPILE FUNC: main
+   -> EXTERN: time matmul_c11_intel_mkl.c(53,21)
+   -> EXTERN: srand matmul_c11_intel_mkl.c(53,5)
+   -> INLINE: atoi matmul_c11_intel_mkl.c(57,33) (10<=487)
+      -> EXTERN: strtol stdlib.h(483,16)
+   -> EXTERN: MKL_Set_Dynamic matmul_c11_intel_mkl.c(61,5)
+   -> EXTERN: MKL_Set_Num_Threads matmul_c11_intel_mkl.c(62,5)
+   -> EXTERN: omp_set_num_threads matmul_c11_intel_mkl.c(63,5)
+   -> EXTERN: printf matmul_c11_intel_mkl.c(65,5)
+   -> EXTERN: puts matmul_c11_intel_mkl.c(66,5)
+   -> INLINE: alloc_matrix matmul_c11_intel_mkl.c(68,17) (50<=325)
+      -> EXTERN: MKL_malloc matmul_c11_intel_mkl.c(18,27)
+      -> die matmul_c11_intel_mkl.c(19,13) (50>1 [EE:15>0])
+   -> INLINE: alloc_matrix matmul_c11_intel_mkl.c(69,17) (50<=325)
+      -> EXTERN: MKL_malloc matmul_c11_intel_mkl.c(18,27)
+      -> die matmul_c11_intel_mkl.c(19,13) (50>1 [EE:15>0])
+   -> INLINE: alloc_matrix matmul_c11_intel_mkl.c(70,17) (-14950<=325)
+      -> EXTERN: MKL_malloc matmul_c11_intel_mkl.c(18,27)
+      -> die matmul_c11_intel_mkl.c(19,13) (50>1 [EE:15>0])
+   -> EXTERN: puts matmul_c11_intel_mkl.c(72,5)
+   -> INLINE: fill_random matmul_c11_intel_mkl.c(73,5) (20<=325)
+      -> EXTERN: rand matmul_c11_intel_mkl.c(26,24)
+   -> INLINE: fill_random matmul_c11_intel_mkl.c(74,5) (-14980<=325)
+      -> EXTERN: rand matmul_c11_intel_mkl.c(26,24)
+   -> EXTERN: printf matmul_c11_intel_mkl.c(76,5)
+   -> EXTERN: printf matmul_c11_intel_mkl.c(92,5)
+   -> EXTERN: MKL_free matmul_c11_intel_mkl.c(94,5)
+   -> EXTERN: MKL_free matmul_c11_intel_mkl.c(95,5)
+   -> EXTERN: MKL_free matmul_c11_intel_mkl.c(96,5)
+   -> INLINE: zero_matrix matmul_c11_intel_mkl.c(80,9) (-15020<=325)
+   -> EXTERN: omp_get_wtime matmul_c11_intel_mkl.c(82,29)
+   -> INLINE: multiply_matrices_mkl matmul_c11_intel_mkl.c(83,9) (-14950<=487)
+      -> EXTERN: cblas_dgemm matmul_c11_intel_mkl.c(37,5)
+   -> EXTERN: omp_get_wtime matmul_c11_intel_mkl.c(84,26)
+   -> llvm.memset.p0.i64 matmul_c11_intel_mkl.c(32,14)
+
+---- End Inlining Report ------
