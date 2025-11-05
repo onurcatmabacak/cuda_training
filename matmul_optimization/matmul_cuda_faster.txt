@@ -1,0 +1,6 @@
+Computing CPU reference (single-threaded)... (this may take a while)
+Matrix mul 1024x1024 using GPU tiled kernel
+Average kernel time over 100 runs: 10.829 ms
+Effective GFLOPS: 198.32
+Max relative error vs CPU: 1.177e-07
+Result: OK

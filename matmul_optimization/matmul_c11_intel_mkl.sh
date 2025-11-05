@@ -15,4 +15,4 @@ icx -O3 -xHost -qopenmp -fp-model fast=2 -ipo matmul_c11_intel_mkl.c \
     -lpthread -lm -ldl \
     -o matmul_c11_intel_mkl
 
-./matmul_c11_intel_mkl
+./matmul_c11_intel_mkl > matmul_c11_intel_mkl.txt
