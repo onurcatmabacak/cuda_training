@@ -1,44 +1,36 @@
 # cuda_training
-cuda training 
+CUDA training for matrix multiplication benchmarks.
 
-Average of 100 runs for 4096x4096 matrix multiplication FLOAT32
+---
 
-CUBLAS + C11
+## FLOAT32 (32-bit floating point)
 
-Average time per run: 0.136673 s
-Effective GFLOPS: 1005.607761
-C[0,0] = 8294.673828
+Average of 100 runs for 4096×4096 matrix multiplication.
 
-CUBLAS + C++20
+| Implementation       | Average Time (s) | Effective GFLOPS | C[0,0] / C[1,1] |
+|----------------------|----------------|-----------------|----------------|
+| CUBLAS + C11         | 0.136673       | 1005.61         | 8294.673828    |
+| CUBLAS + C++20       | 0.13688        | 1004.09         | 8294.67        |
+| CUBLAS + Julia 1.12.2| 0.154373       | 890.31          | 1035.1787      |
 
-GPU cuBLAS
-Average time per run: 0.13688 s
-Effective GFLOPS: 1004.09
-C[1,1] = 8294.67
+---
 
-CUBLAS + Julia 1.12.2
+## FLOAT64 (64-bit floating point)
 
-GPU Julia (cuBLAS)
-Average time per run: 0.154373 s
-Effective GFLOPS: 890.31
-C[1,1] = 1035.1787
+Average of 100 runs for 4096×4096 matrix multiplication.
 
-Average of 100 runs for 4096x4096 matrix multiplication FLOAT64
+| Implementation       | Average Time (s) | Effective GFLOPS | C[0,0] / C[1,1] |
+|----------------------|----------------|-----------------|----------------|
+| C11 cuBLAS           | 5.658008       | 24.29           | 8294.665937    |
+| C++20 cuBLAS         | 8.18943        | 16.78           | 8294.67        |
+| GPU Julia cuBLAS      | 8.914042       | 15.42           | 1038.985666    |
 
-C11 DGEMM BLAS benchmark (Float64) 4096x4096, 100 runs
+---
 
-Average time per run: 5.658008 s 
-Effective GFLOPS: 24.291048 
-C[0,0] = 8294.665937
+### Notes
 
-C++20
+- All results are averaged over 100 runs.
+- Float32 arrays are used for single-precision benchmarks.
+- Float64 arrays are used for double-precision benchmarks.
+- `C[0,0]` in C/C++ corresponds to `C[1,1]` in Julia (1-based indexing).
 
-GPU cuBLAS 4096x4096 matrix multiplication
-Average time per run: 8.18943 s
-Effective GFLOPS: 16.7825
-C[1,1] = 8294.67
-
-GPU Julia 4096x4096 matrix multiplication (cuBLAS)
-Average time per run: 8.914042 s
-Effective GFLOPS: 15.42
-C[1,1] = 1038.9856662159339
