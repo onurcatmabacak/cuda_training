@@ -1,98 +1,72 @@
+// matmul_c11_blas_float64.c  (Float64 DGEMM version)
+#define _POSIX_C_SOURCE 200809L
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
-#include <mkl.h>
+#include <cblas.h>
 #include <omp.h>
 
-#define N 4096       // Matrix size
-#define RUNS 100      // Number of repetitions
-#define ALIGNMENT 64 // Memory alignment
+#define N 4096
+#define RUNS 100
+#define ALIGNMENT 64
 
-_Noreturn void die(const char *msg) {
+static inline void die(const char *msg) {
     fprintf(stderr, "%s\n", msg);
     exit(EXIT_FAILURE);
 }
 
-// Allocate aligned 1D matrix
 static inline double *alloc_matrix(size_t n) {
-    double *p = (double *)mkl_malloc(n * n * sizeof(double), ALIGNMENT);
-    if (!p) die("Memory allocation failed");
-    return p;
+    void *ptr = NULL;
+    if (posix_memalign(&ptr, ALIGNMENT, n * n * sizeof(double)) != 0)
+        die("aligned alloc failed");
+    return (double *)ptr;
 }
 
-// Fill matrix with random values
 static inline void fill_random(double *M, size_t n) {
-    for (size_t i = 0; i < n * n; i++)
-        M[i] = (double)rand() / RAND_MAX;
+    for (size_t i = 0; i < n*n; i++)
+        M[i] = (double)rand() / (double)RAND_MAX;
 }
 
-// Zero matrix
-static inline void zero_matrix(double *M, size_t n) {
-    for (size_t i = 0; i < n * n; i++)
-        M[i] = 0.0;
-}
-
-// Multiply matrices using MKL (C = A * B)
-static inline void multiply_matrices_mkl(double *A, double *B, double *C, size_t n) {
-    cblas_dgemm(
-        CblasRowMajor, // Row-major layout
-        CblasNoTrans,  // A not transposed
-        CblasNoTrans,  // B not transposed
-        n,             // rows of A/C
-        n,             // columns of B/C
-        n,             // columns of A / rows of B
-        1.0,           // alpha
-        A, n,          // matrix A and leading dimension
-        B, n,          // matrix B and leading dimension
-        0.0,           // beta
-        C, n           // matrix C and leading dimension
-    );
-}
-
-int main(int argc, char *argv[]) {
+int main() {
     srand((unsigned)time(NULL));
 
-    // Determine number of threads
-    int num_threads = 8; // default
-    if (argc > 1) num_threads = atoi(argv[1]);
-    if (num_threads <= 0) num_threads = 1;
-
-    // Set MKL and OpenMP threads
-    mkl_set_dynamic(0);
-    mkl_set_num_threads(num_threads);
-    omp_set_num_threads(num_threads);
-
-    printf("Using %d thread(s)\n", num_threads);
-    printf("Allocating matrices...\n");
+    printf("C11 DGEMM BLAS benchmark (Float64) %dx%d, %d runs\n", N, N, RUNS);
 
     double *A = alloc_matrix(N);
     double *B = alloc_matrix(N);
     double *C = alloc_matrix(N);
 
-    printf("Filling matrices with random values...\n");
     fill_random(A, N);
     fill_random(B, N);
 
-    printf("Running matrix multiplication %d times for %dx%d matrices...\n", RUNS, N, N);
+    // Warm-up run (Julia BLAS also does warm-up)
+    cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans,
+                N, N, N,
+                1.0, A, N, B, N, 0.0, C, N);
 
-    double total_time = 0.0;
-    for (int run = 0; run < RUNS; run++) {
-        zero_matrix(C, N);
+    double total = 0.0;
 
-        double start_time = omp_get_wtime();
-        multiply_matrices_mkl(A, B, C, N);
-        double elapsed = omp_get_wtime() - start_time;
+    for (int r = 0; r < RUNS; r++) {
+        double t0 = omp_get_wtime();
 
-        total_time += elapsed;
-        // printf("Run %2d: %.6f s\n", run + 1, elapsed);
+        // Equivalent to Julia: mul!(C, A, B)
+        cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans,
+                    N, N, N,
+                    1.0, A, N, B, N, 0.0, C, N);
+
+        double t1 = omp_get_wtime();
+        total += (t1 - t0);
     }
 
-    double avg_time = total_time / RUNS;
-    double gflops = 2.0 * N * N * N / (avg_time * 1e9);
-    printf("\nAverage time: %.6f s | %.2f GFLOPS | C[0]=%.6f\n", avg_time, gflops, C[0]);
+    double avg = total / RUNS;
+    double gflops = 2.0 * N * N * N / (avg * 1e9);
 
-    mkl_free(A);
-    mkl_free(B);
-    mkl_free(C);
+    printf("\nAverage time per run: %.6f s\n", avg);
+    printf("Effective GFLOPS: %.2f\n", gflops);
+    printf("C[0] = %.6f\n", C[0]);  // same as Julia prints C[1,1]
+
+    free(A);
+    free(B);
+    free(C);
     return 0;
 }

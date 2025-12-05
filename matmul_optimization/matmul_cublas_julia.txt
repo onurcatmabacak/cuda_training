@@ -1,4 +1,4 @@
 GPU Julia 4096x4096 matrix multiplication (cuBLAS)
-Average time per run: 0.154373 s
-Effective GFLOPS: 890.31
-C[1,1] = 1035.1787
+Average time per run: 8.914042 s
+Effective GFLOPS: 15.42
+C[1,1] = 1038.9856662159339

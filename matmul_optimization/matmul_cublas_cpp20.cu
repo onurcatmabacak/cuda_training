@@ -1,4 +1,4 @@
-// matmul_cublas_cpp20.cpp
+// matmul_cublas_cpp20_double.cpp
 #include <iostream>
 #include <vector>
 #include <cuda_runtime.h>
@@ -23,23 +23,23 @@ inline void checkCublas(cublasStatus_t s, const char* msg) {
 }
 
 int main() {
-    const size_t bytes = N * N * sizeof(float);
+    const size_t bytes = N * N * sizeof(double);
 
     // Allocate host pinned memory
-    float *h_A{}, *h_B{}, *h_C{};
+    double *h_A{}, *h_B{}, *h_C{};
     checkCuda(cudaMallocHost(&h_A, bytes), "cudaMallocHost A");
     checkCuda(cudaMallocHost(&h_B, bytes), "cudaMallocHost B");
     checkCuda(cudaMallocHost(&h_C, bytes), "cudaMallocHost C");
 
     // Initialize matrices
     for (int i = 0; i < N * N; ++i) {
-        h_A[i] = static_cast<float>((i % 17 + 1) * 1e-3f + 1.0f);
-        h_B[i] = static_cast<float>((i % 13 + 1) * 1e-3f + 2.0f);
-        h_C[i] = 0.0f;
+        h_A[i] = static_cast<double>((i % 17 + 1) * 1e-3 + 1.0);
+        h_B[i] = static_cast<double>((i % 13 + 1) * 1e-3 + 2.0);
+        h_C[i] = 0.0;
     }
 
     // Allocate device memory
-    float *d_A{}, *d_B{}, *d_C{};
+    double *d_A{}, *d_B{}, *d_C{};
     checkCuda(cudaMalloc(&d_A, bytes), "d_A");
     checkCuda(cudaMalloc(&d_B, bytes), "d_B");
     checkCuda(cudaMalloc(&d_C, bytes), "d_C");
@@ -52,11 +52,10 @@ int main() {
     cublasHandle_t handle;
     checkCublas(cublasCreate(&handle), "create handle");
 
-    float alpha = 1.0f;
-    float beta = 0.0f;
+    double alpha = 1.0, beta = 0.0;
 
     // Warmup
-    checkCublas(cublasSgemm(
+    checkCublas(cublasDgemm(
         handle,
         CUBLAS_OP_N, CUBLAS_OP_N,
         N, N, N,
@@ -70,11 +69,11 @@ int main() {
     checkCuda(cudaDeviceSynchronize(), "sync warmup");
 
     // Timing
-    float ms_total = 0.0f;
+    double ms_total = 0.0;
     for (int r = 0; r < RUNS; ++r) {
         auto start = std::chrono::high_resolution_clock::now();
 
-        checkCublas(cublasSgemm(
+        checkCublas(cublasDgemm(
             handle,
             CUBLAS_OP_N, CUBLAS_OP_N,
             N, N, N,
@@ -83,23 +82,22 @@ int main() {
             d_B, N,
             &beta,
             d_C, N
-        ), "sgemm");
+        ), "dgemm");
 
         checkCuda(cudaDeviceSynchronize(), "sync");
 
         auto end = std::chrono::high_resolution_clock::now();
-        ms_total += std::chrono::duration<float, std::milli>(end - start).count();
+        ms_total += std::chrono::duration<double, std::milli>(end - start).count();
     }
 
-    float ms_avg = ms_total / RUNS;
+    double ms_avg_s = ms_total / RUNS / 1000.0; // seconds
+    double gflops = 2.0 * N * N * N / (ms_avg_s * 1e9);
 
     // Copy result back to host
     checkCuda(cudaMemcpy(h_C, d_C, bytes, cudaMemcpyDeviceToHost), "D2H C");
 
-    // Print result sample and performance
     std::cout << "GPU cuBLAS " << N << "x" << N << " matrix multiplication\n";
-    std::cout << "Average time per run: " << ms_avg / 1000.0f << " s\n";
-    double gflops = 2.0 * N * N * N / (ms_avg * 1e6);
+    std::cout << "Average time per run: " << ms_avg_s << " s\n";
     std::cout << "Effective GFLOPS: " << gflops << "\n";
     std::cout << "C[1,1] = " << h_C[0] << "\n";
 

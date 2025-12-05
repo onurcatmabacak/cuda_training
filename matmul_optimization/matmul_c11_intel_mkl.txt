@@ -1,6 +1,5 @@
-Using 8 thread(s)
-Allocating matrices...
-Filling matrices with random values...
-Running matrix multiplication 100 times for 4096x4096 matrices...
+C11 DGEMM BLAS benchmark (Float64) 4096x4096, 100 runs
 
-Average time: 1.449567 s | 94.81 GFLOPS | C[0]=1028.929200
+Average time per run: 1.059780 s
+Effective GFLOPS: 129.69
+C[0] = 1043.218427

@@ -7,9 +7,9 @@ const N = 4096
 const RUNS = 100
 
 # Initialize random Float32 matrices directly on the GPU
-A_d = CUDA.rand(Float32, N, N)
-B_d = CUDA.rand(Float32, N, N)
-C_d = CUDA.zeros(Float32, N, N)
+A_d = CUDA.rand(Float64, N, N)
+B_d = CUDA.rand(Float64, N, N)
+C_d = CUDA.zeros(Float64, N, N)
 
 # Warmup to initialize cuBLAS and GPU
 C_d .= A_d * B_d

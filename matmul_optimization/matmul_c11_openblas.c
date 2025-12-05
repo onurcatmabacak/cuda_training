@@ -6,7 +6,7 @@
 
 #define N 1024 // Matrix size (N x N)
 #define RUNS 100
-#define ALIGNMENT 64 //64-byte alignment (AVX/AVX-512 friendly)
+#define ALIGNMENT 32 //64-byte alignment (AVX/AVX-512 friendly)
 
 _Noreturn void die(const char *msg){
     fprintf(stderr, "%s\n", msg);
