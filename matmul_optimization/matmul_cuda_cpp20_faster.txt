@@ -1,0 +1,5 @@
+Matrix mul 4096x4096 using CUDA 960M kernel
+Average kernel time: 849.431 ms
+Effective GFLOPS: 161.801
+Max relative error vs CPU: 1.17734e-07
+Result: OK

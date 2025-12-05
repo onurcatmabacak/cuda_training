@@ -6,7 +6,7 @@
 #include <math.h>
 #include <cuda_runtime.h>
 
-#define N 1024                     // matrix dimension (N x N)
+#define N 4096                     // matrix dimension (N x N)
 #define TILE 32                    // tile size (must divide N)
 #define BLOCK_DIM_X TILE
 #define BLOCK_DIM_Y TILE

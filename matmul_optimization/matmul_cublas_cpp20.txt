@@ -1,0 +1,4 @@
+GPU cuBLAS 4096x4096 matrix multiplication
+Average time per run: 0.13688 s
+Effective GFLOPS: 1004.09
+C[1,1] = 8294.67

@@ -1,0 +1,10 @@
+Using CUDA device: NVIDIA GeForce GTX 960M
+Compute capability: 5.0.0
+Launching kernel with threads=(32, 32), blocks=(128, 128)
+
+=== Method 1: Using @elapsed ===
+Average kernel time over 100 runs: 3860.829 ms
+Effective GFLOPS: 35.6
+
+=== Correctness Check ===
+Sample max relative error: 6.145931328927965e-8

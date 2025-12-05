@@ -4,7 +4,7 @@
 #include <mkl.h>
 #include <omp.h>
 
-#define N 1024       // Matrix size
+#define N 4096       // Matrix size
 #define RUNS 100      // Number of repetitions
 #define ALIGNMENT 64 // Memory alignment
 

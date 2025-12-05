@@ -1,0 +1,3 @@
+Average time per run: 0.136673 s
+Effective GFLOPS: 1005.607761
+C[0,0] = 8294.673828
