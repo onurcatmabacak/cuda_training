@@ -3,10 +3,10 @@ using LinearAlgebra
 using BenchmarkTools
 
 # Set number of BLAS threads (choose number of physical cores)
-BLAS.set_num_threads(8)  # adjust to your CPU cores
+BLAS.set_num_threads(parse(Int, get(ENV, "MATMUL_THREADS", "8")))  # adjust to your CPU cores
 
-const N = 4096
-const RUNS = 100  # reduce for benchmarking
+const N = parse(Int, get(ENV, "MATMUL_N", "4096"))
+const RUNS = parse(Int, get(ENV, "MATMUL_RUNS", "100"))  # reduce for benchmarking
 
 # Allocate and initialize matrices
 A = rand(Float32, N, N)

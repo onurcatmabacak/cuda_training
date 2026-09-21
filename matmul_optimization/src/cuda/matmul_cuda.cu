@@ -3,9 +3,21 @@
 #include <time.h>
 #include <cuda_runtime.h>
 
+#ifndef M
 #define M 1024  // Number of rows in A and C
+#endif
+#ifndef K
 #define K 1024   // Number of columns in A and rows in B
+#endif
+#ifndef N
 #define N 1024  // Number of columns in B and C
+#endif
+#ifndef RUNS
+#define RUNS 20  // measured runs (this program also runs a slow CPU reference)
+#endif
+#ifndef WARMUP
+#define WARMUP 3
+#endif
 #define BLOCK_SIZE 32
 
 // Example 3x2 @ 2x4 = 3x4 -> (M x K) @ (K x N) = (M x N)
@@ -73,6 +85,8 @@ int main() {
     int size_B = K * N * sizeof(float);
     int size_C = M * N * sizeof(float);
 
+    printf("Matrix size: %dx%d\n", M, N);
+
     // Allocate host memory
     h_A = (float*)malloc(size_A);
     h_B = (float*)malloc(size_B);
@@ -99,7 +113,7 @@ int main() {
 
     // Warm-up runs
     printf("Performing warm-up runs...\n");
-    for (int i = 0; i < 3; i++) {
+    for (int i = 0; i < WARMUP; i++) {
         matmul_cpu(h_A, h_B, h_C_cpu, M, K, N);
         matmul_gpu<<<gridDim, blockDim>>>(d_A, d_B, d_C, M, K, N);
         cudaDeviceSynchronize();
@@ -108,25 +122,25 @@ int main() {
     // Benchmark CPU implementation
     printf("Benchmarking CPU implementation...\n");
     double cpu_total_time = 0.0;
-    for (int i = 0; i < 20; i++) {
+    for (int i = 0; i < RUNS; i++) {
         double start_time = get_time();
         matmul_cpu(h_A, h_B, h_C_cpu, M, K, N);
         double end_time = get_time();
         cpu_total_time += end_time - start_time;
     }
-    double cpu_avg_time = cpu_total_time / 20.0;
+    double cpu_avg_time = cpu_total_time / RUNS;
 
     // Benchmark GPU implementation
     printf("Benchmarking GPU implementation...\n");
     double gpu_total_time = 0.0;
-    for (int i = 0; i < 20; i++) {
+    for (int i = 0; i < RUNS; i++) {
         double start_time = get_time();
         matmul_gpu<<<gridDim, blockDim>>>(d_A, d_B, d_C, M, K, N);
         cudaDeviceSynchronize();
         double end_time = get_time();
         gpu_total_time += end_time - start_time;
     }
-    double gpu_avg_time = gpu_total_time / 20.0;
+    double gpu_avg_time = gpu_total_time / RUNS;
 
     // Print results
     printf("CPU average time: %f microseconds\n", (cpu_avg_time * 1e6f));

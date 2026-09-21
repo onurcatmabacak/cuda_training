@@ -5,8 +5,12 @@
 #include <stdbool.h>
 #include <omp.h>
 
+#ifndef N
 #define N 1024 // Matrix size (N x N)
+#endif
+#ifndef RUNS
 #define RUNS 100
+#endif
 #define BLOCK 32 // Block size for cache tiling
 #define ALIGNMENT 64 //64-byte alignment (AVX/AVX-512 friendly)
 

@@ -1,0 +1,10 @@
+# Binaries produced by run_all.sh (prebuilt legacy binaries are tracked under bin/legacy/)
+/bin/*
+!/bin/legacy/
+
+# Compiler logs and optimisation reports
+/build/*
+
+# Per-run results (results/legacy/ is tracked)
+/results/run_*/
+/results/latest

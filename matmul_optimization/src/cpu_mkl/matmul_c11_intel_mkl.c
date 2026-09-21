@@ -6,8 +6,15 @@
 #include <cblas.h>
 #include <omp.h>
 
-#define N 4096
-#define RUNS 100
+#ifndef MATMUL_N
+#define MATMUL_N 4096
+#endif
+#ifndef MATMUL_RUNS
+#define MATMUL_RUNS 100
+#endif
+/* Define after <cblas.h>/<omp.h>: their prototypes name a parameter 'N'. */
+#define N MATMUL_N
+#define RUNS MATMUL_RUNS
 #define ALIGNMENT 64
 
 static inline void die(const char *msg) {

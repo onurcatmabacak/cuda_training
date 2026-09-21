@@ -6,8 +6,13 @@
 #include <math.h>
 #include <cuda_runtime.h>
 
+#ifndef N
 #define N 4096                     // matrix dimension (N x N)
+#endif
 #define TILE 32                    // tile size (must divide N)
+#ifndef RUNS
+#define RUNS 100                   // timed runs
+#endif
 #define BLOCK_DIM_X TILE
 #define BLOCK_DIM_Y TILE
 
@@ -122,7 +127,6 @@ int main(void) {
     checkCuda(cudaEventSynchronize(stop), "cudaEventSynchronize warmup");
 
     // Timed runs
-    const int RUNS = 100;
     float ms_total = 0.0f;
     for (int r = 0; r < RUNS; ++r) {
         checkCuda(cudaEventRecord(start), "cudaEventRecord start");

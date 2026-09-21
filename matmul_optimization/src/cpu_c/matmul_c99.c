@@ -2,8 +2,12 @@
 #include <stdlib.h>
 #include <time.h>
 
+#ifndef N
 #define N 1024 // matrix size NxN
+#endif
+#ifndef RUNS
 #define RUNS 100
+#endif
 
 // Function to allocate a 2D matrix dynamically
 

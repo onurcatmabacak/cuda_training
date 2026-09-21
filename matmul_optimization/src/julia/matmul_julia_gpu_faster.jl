@@ -1,9 +1,9 @@
 using CUDA  
 using LinearAlgebra  
   
-const N = 4096  
+const N = parse(Int, get(ENV, "MATMUL_N", "4096"))  # matrix size  
 const TILE = 32         # tile size  
-const RUNS = 100         # number of timed runs  
+const RUNS = parse(Int, get(ENV, "MATMUL_RUNS", "100"))         # number of timed runs  
   
 # CUDA kernel: shared-memory tiled GEMM  
 function kernel_tiled(A, B, C, n)  

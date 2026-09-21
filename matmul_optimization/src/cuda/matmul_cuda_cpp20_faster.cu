@@ -13,9 +13,16 @@
 #include <cmath>
 #include <cuda_runtime.h>
 
-constexpr int N = 4096;
+#ifndef MATMUL_N
+#define MATMUL_N 4096
+#endif
+#ifndef MATMUL_RUNS
+#define MATMUL_RUNS 100
+#endif
+
+constexpr int N = MATMUL_N;
 constexpr int TILE = 32;
-constexpr int RUNS = 100;
+constexpr int RUNS = MATMUL_RUNS;
 
 inline void checkCuda(cudaError_t e, const char* msg) {
     if (e != cudaSuccess) {

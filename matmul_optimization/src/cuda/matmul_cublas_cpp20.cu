@@ -5,8 +5,15 @@
 #include <cublas_v2.h>
 #include <chrono>
 
-constexpr int N = 4096;
-constexpr int RUNS = 100;
+#ifndef MATMUL_N
+#define MATMUL_N 4096
+#endif
+#ifndef MATMUL_RUNS
+#define MATMUL_RUNS 100
+#endif
+
+constexpr int N = MATMUL_N;
+constexpr int RUNS = MATMUL_RUNS;
 
 inline void checkCuda(cudaError_t e, const char* msg) {
     if (e != cudaSuccess) {

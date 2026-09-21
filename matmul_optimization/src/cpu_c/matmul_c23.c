@@ -3,29 +3,34 @@
 #include <time.h>
 #include <stdbool.h>
 
+#ifndef N
 #define N 1024 // Matrix size (N x N)
+#endif
+#ifndef RUNS
 #define RUNS 100
+#endif
 
-_Noreturn void die(const char *msg){
-    fprintf(stderr, "%s\n", msg);
+[[noreturn]] void die(const char *msg){
+    fprintf(stderr, "Error: %s \n", msg);
     exit(EXIT_FAILURE);
 }
 
 double **allocateMatrix(int n){
-    double **mat = malloc(n * sizeof *mat);
+    double **mat = malloc(sizeof(double) * n);
 
-    if (mat == NULL)
+    if (mat == nullptr)
         die("Memory allocation failed for matrix row. \n");
 
     for(int i = 0; i < n; i++){
 
-        mat[i] = malloc(n * sizeof *mat[i]);
-        if (mat[i] == NULL)
+        mat[i] = malloc(n * sizeof(double));
+        if (mat[i] == nullptr)
             die("Memory allocation failed for matrix columns. \n");
     }
 
     return mat;
 }
+
 
 void freeMatrix(double **mat, int n){
     for (int i = 0; i < n; i++)
@@ -43,9 +48,12 @@ void fillRandom(double **mat, int n){
 void multiplyMatrices(double **A, double **B, double **C, int n){
 
     for (int i = 0; i < n; i++){
-        for (int k = 0; k < n; k++){
-            for (int j = 0; j < n; j++)
-                C[i][j] += A[i][k] * B[k][j];
+        for (int j = 0; j < n; j++){
+            double sum = 0.0;
+
+            for (int k = 0; k < n; k++)
+                sum += A[i][k] * B[k][j];
+            C[i][j] = sum;
         }
     }
         

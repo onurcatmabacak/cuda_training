@@ -3,8 +3,8 @@ using CUDA
 using BenchmarkTools
 
 # Matrix size and number of runs
-const N = 4096
-const RUNS = 100
+const N = parse(Int, get(ENV, "MATMUL_N", "4096"))
+const RUNS = parse(Int, get(ENV, "MATMUL_RUNS", "100"))
 
 # Initialize random Float32 matrices directly on the GPU
 A_d = CUDA.rand(Float64, N, N)

@@ -3,8 +3,12 @@
 #include <time.h>
 #include <stdbool.h>
 
+#ifndef N
 #define N 1024 // Matrix size (N x N)
+#endif
+#ifndef RUNS
 #define RUNS 100
+#endif
 
 _Noreturn void die(const char *msg){
     fprintf(stderr, "%s\n", msg);

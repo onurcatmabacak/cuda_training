@@ -23,7 +23,7 @@ function benchmark_cublas(N, RUNS)
     return avg_ms, gflops, Array(C)[1,1]
 end
 
-avg_ms, gflops, c11 = benchmark_cublas(4096, 100)
+avg_ms, gflops, c11 = benchmark_cublas(parse(Int, get(ENV, "MATMUL_N", "4096")), parse(Int, get(ENV, "MATMUL_RUNS", "100")))
 println("Average kernel time (ms): $avg_ms")
 println("Effective GFLOPS: $gflops")
 println("C[1,1] = $c11")

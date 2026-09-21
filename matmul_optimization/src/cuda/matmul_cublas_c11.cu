@@ -4,8 +4,12 @@
 #include <cuda_runtime.h>
 #include <cublas_v2.h>
 
+#ifndef N
 #define N 4096
+#endif
+#ifndef RUNS
 #define RUNS 100
+#endif
 
 inline void checkCuda(cudaError_t e, const char* msg) {
     if (e != cudaSuccess) { 

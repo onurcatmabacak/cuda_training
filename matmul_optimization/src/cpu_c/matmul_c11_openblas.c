@@ -4,8 +4,15 @@
 #include <time.h>
 #include <cblas.h>
 
-#define N 1024 // Matrix size (N x N)
-#define RUNS 100
+#ifndef MATMUL_N
+#define MATMUL_N 1024 // Matrix size (N x N)
+#endif
+#ifndef MATMUL_RUNS
+#define MATMUL_RUNS 100
+#endif
+/* Define after <cblas.h>: its prototypes name a parameter 'N'. */
+#define N MATMUL_N
+#define RUNS MATMUL_RUNS
 #define ALIGNMENT 32 //64-byte alignment (AVX/AVX-512 friendly)
 
 _Noreturn void die(const char *msg){

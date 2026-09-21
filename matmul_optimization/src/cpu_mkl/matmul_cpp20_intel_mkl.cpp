@@ -13,8 +13,15 @@
 #include <mkl.h>
 #include <omp.h>
 
-constexpr std::size_t N = 4096;     // matrix dimension
-constexpr int RUNS = 100;           // measured runs
+#ifndef MATMUL_N
+#define MATMUL_N 4096
+#endif
+#ifndef MATMUL_RUNS
+#define MATMUL_RUNS 100
+#endif
+
+constexpr std::size_t N = MATMUL_N;     // matrix dimension
+constexpr int RUNS = MATMUL_RUNS;       // measured runs
 constexpr int ALIGNMENT = 64;       // mkl_malloc alignment
 
 [[noreturn]] static void die(const char* msg) {
