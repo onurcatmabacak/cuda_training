@@ -11,3 +11,7 @@
 
 # Stable single-file report written by run_all.sh
 /RESULTS.md
+
+# Python bytecode
+__pycache__/
+*.pyc
