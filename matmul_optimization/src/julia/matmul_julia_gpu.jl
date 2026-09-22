@@ -1,4 +1,5 @@
 using CUDA
+using LinearAlgebra
 
 function benchmark_cublas(N, RUNS)
     A = CUDA.rand(Float32, N, N)
@@ -6,7 +7,7 @@ function benchmark_cublas(N, RUNS)
     C = CUDA.zeros(Float32, N, N)
 
     # Warmup
-    C .= A * B
+    mul!(C, A, B)
     synchronize()  # wait for GPU to finish
 
     # Keep the GPU busy until it boosts its clocks: a short kernel timed right
@@ -14,7 +15,7 @@ function benchmark_cublas(N, RUNS)
     # boosted ~1200 MHz on this laptop).
     let t0 = time()
         while time() - t0 < 2.0
-            C .= A * B
+            mul!(C, A, B)
             synchronize()
         end
     end
@@ -22,7 +23,7 @@ function benchmark_cublas(N, RUNS)
     total_ms = 0.0
     for _ in 1:RUNS
         ms = CUDA.@elapsed begin
-            C .= A * B
+            mul!(C, A, B)
             synchronize()   # ensure kernel finishes
         end
         total_ms += ms * 1000.0  # seconds -> ms

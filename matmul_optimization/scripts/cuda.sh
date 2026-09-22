@@ -72,3 +72,18 @@ bench_build_run "$name" "$MM_CAT" ::: \
   "$MM_NVCC" -O3 -arch="$MM_ARCH" -std=c++20 "${CPP_SIZE[@]}" -lcublas \
     "$MM_SRC/cuda/matmul_cublas_cpp20.cu" -o "$MM_BIN/matmul_cublas_cpp20" ::: \
   "$MM_BIN/matmul_cublas_cpp20"
+
+# 6) Best Float32 SGEMM: hand-written register-tiled kernel vs cuBLAS.
+#    One binary, two timed backends (selected by argv[1]).
+BEST_BIN="$MM_BIN/matmul_cuda_best"
+if build "${MM_CAT}__matmul_cuda_best" \
+    "$MM_NVCC" -O3 -arch="$MM_ARCH" "${SIZE[@]}" -lcublas \
+      "$MM_SRC/cuda/matmul_cuda_best.cu" -o "$BEST_BIN"; then
+  run_bench "${MM_CAT}__matmul_cuda_optimized" "$MM_CAT" "$BEST_BIN" cuda
+  run_bench "${MM_CAT}__matmul_cublas_sgemm"   "$MM_CAT" "$BEST_BIN" cublas
+else
+  manifest_add "${MM_CAT}__matmul_cuda_optimized" "$MM_CAT" "BUILD_FAIL" "1" "0" \
+    "$MM_BUILD/${MM_CAT}__matmul_cuda_best.build.log" "build failed"
+  manifest_add "${MM_CAT}__matmul_cublas_sgemm" "$MM_CAT" "BUILD_FAIL" "1" "0" \
+    "$MM_BUILD/${MM_CAT}__matmul_cuda_best.build.log" "build failed"
+fi

@@ -57,7 +57,7 @@ def find_time(text):
 
 def correctness_notes(text: str) -> list[str]:
     notes = []
-    m = re.search(r"Max relative error vs CPU:\s*([\d.eE+-]+)", text)
+    m = re.search(r"Max relative error vs \w+:\s*([\d.eE+-]+)", text)
     if not m:
         m = re.search(r"Sample max relative error:\s*([\d.eE+-]+)", text)
     if m:
