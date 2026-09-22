@@ -11,6 +11,7 @@
 #include <vector>
 #include <cstdlib>
 #include <cmath>
+#include <chrono>
 #include <cuda_runtime.h>
 
 #ifndef MATMUL_N
@@ -61,13 +62,19 @@ __global__ void matmul_tiled(const float* __restrict__ A,
     C[row * n + col] = acc;
 }
 
+// CPU reference for verification: cache-friendly (i,k,j) and parallelised.
+// NOTE: C must be zero-initialised before calling.
 void matmul_cpu(const std::vector<float>& A, const std::vector<float>& B, std::vector<float>& C, int n) {
-    for (int i = 0; i < n; ++i)
-        for (int j = 0; j < n; ++j) {
-            float sum = 0.0f;
-            for (int k = 0; k < n; ++k) sum += A[i * n + k] * B[k * n + j];
-            C[i * n + j] = sum;
+    #pragma omp parallel for schedule(static)
+    for (int i = 0; i < n; ++i) {
+        float *Ci = C.data() + (size_t)i * n;
+        for (int k = 0; k < n; ++k) {
+            const float a = A[(size_t)i * n + k];
+            const float *Bk = B.data() + (size_t)k * n;
+            for (int j = 0; j < n; ++j)
+                Ci[j] += a * Bk[j];
         }
+    }
 }
 
 int main() {
@@ -101,10 +108,19 @@ int main() {
     checkCuda(cudaEventCreate(&start), "start event");
     checkCuda(cudaEventCreate(&stop), "stop event");
 
-    // Warmup
-    matmul_tiled<<<grid, block>>>(d_A, d_B, d_C, N);
-    checkCuda(cudaGetLastError(), "warmup");
-    checkCuda(cudaDeviceSynchronize(), "sync warmup");
+    // Warm up until the GPU reaches its boost clock (short kernels otherwise
+    // measure at the idle clock, P8 ~135 MHz vs boosted ~1200 MHz).
+    {
+        auto warm_start = std::chrono::steady_clock::now();
+        double warm_s = 0.0;
+        do {
+            matmul_tiled<<<grid, block>>>(d_A, d_B, d_C, N);
+            checkCuda(cudaGetLastError(), "warmup");
+            checkCuda(cudaDeviceSynchronize(), "sync warmup");
+            warm_s = std::chrono::duration<double>(
+                        std::chrono::steady_clock::now() - warm_start).count();
+        } while (warm_s < 2.0);
+    }
 
     float ms_total = 0.0f;
     for (int r = 0; r < RUNS; ++r) {

@@ -130,6 +130,16 @@ int main() {
     }
     double cpu_avg_time = cpu_total_time / RUNS;
 
+    // Warm up the GPU until it reaches boost clocks (short kernels timed right
+    // after startup otherwise measure at the idle clock).
+    {
+        double warm_start = get_time();
+        do {
+            matmul_gpu<<<gridDim, blockDim>>>(d_A, d_B, d_C, M, K, N);
+            cudaDeviceSynchronize();
+        } while (get_time() - warm_start < 2.0);
+    }
+
     // Benchmark GPU implementation
     printf("Benchmarking GPU implementation...\n");
     double gpu_total_time = 0.0;

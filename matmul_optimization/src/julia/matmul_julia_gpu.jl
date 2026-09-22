@@ -9,6 +9,16 @@ function benchmark_cublas(N, RUNS)
     C .= A * B
     synchronize()  # wait for GPU to finish
 
+    # Keep the GPU busy until it boosts its clocks: a short kernel timed right
+    # after startup otherwise measures at the idle clock (P8 ~135 MHz vs
+    # boosted ~1200 MHz on this laptop).
+    let t0 = time()
+        while time() - t0 < 2.0
+            C .= A * B
+            synchronize()
+        end
+    end
+
     total_ms = 0.0
     for _ in 1:RUNS
         ms = CUDA.@elapsed begin

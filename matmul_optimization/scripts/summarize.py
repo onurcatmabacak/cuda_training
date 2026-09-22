@@ -271,6 +271,34 @@ def main() -> int:
 
     md = "\n".join(lines)
     (results_dir / "summary.md").write_text(md)
+
+    # ---- single self-contained file: report + raw output of every benchmark --
+    full = list(lines)
+    full.append("---")
+    full.append("")
+    full.append("## Raw output of every benchmark")
+    full.append("")
+    for entry in manifest:
+        out = entry.get("output") or ""
+        if not out or not Path(out).exists():
+            continue
+        text = Path(out).read_text(errors="replace").rstrip()
+        tlines = text.splitlines()
+        status = entry.get("status", "")
+        wall = entry.get("wall_s", "")
+        full.append(f"### `{entry.get('name', '')}` -- {status}, {wall} s")
+        full.append("")
+        full.append("```")
+        if len(tlines) > 60:
+            full.extend(tlines[:45])
+            full.append(f"... ({len(tlines)} lines total; full file: {out}) ...")
+            full.extend(tlines[-10:])
+        else:
+            full.extend(tlines)
+        full.append("```")
+        full.append("")
+    (results_dir / "FULL_REPORT.md").write_text("\n".join(full) + "\n")
+
     sys.stdout.write(md)
     return 0
 

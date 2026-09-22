@@ -78,6 +78,15 @@ function main()
     @cuda threads=threads blocks=blocks shmem=shbytes kernel_tiled(A, B, C, N)  
     CUDA.synchronize()  
   
+    # Keep the GPU busy until it boosts its clocks (a short kernel timed right
+    # after startup otherwise measures at the idle clock).
+    let t0 = time()
+        while time() - t0 < 2.0
+            @cuda threads=threads blocks=blocks shmem=shbytes kernel_tiled(A, B, C, N)
+            CUDA.synchronize()
+        end
+    end
+
     # Method 1: Using @elapsed (simpler approach)
     println("\n=== Method 1: Using @elapsed ===")
     total_time = 0.0

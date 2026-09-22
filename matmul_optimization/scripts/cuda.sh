@@ -48,14 +48,14 @@ bench_build_run "$name" "$MM_CAT" ::: \
 # 2) Shared-memory tiled kernel (C).
 name="${MM_CAT}__matmul_cuda_faster"
 bench_build_run "$name" "$MM_CAT" ::: \
-  "$MM_NVCC" -O3 -arch="$MM_ARCH" "${SIZE[@]}" \
+  "$MM_NVCC" -O3 -arch="$MM_ARCH" -Xcompiler -fopenmp "${SIZE[@]}" \
     "$MM_SRC/cuda/matmul_cuda_faster.cu" -o "$MM_BIN/matmul_cuda_faster" ::: \
   "$MM_BIN/matmul_cuda_faster"
 
 # 3) Shared-memory tiled kernel (C++20 host code).
 name="${MM_CAT}__matmul_cuda_cpp20_faster"
 bench_build_run "$name" "$MM_CAT" ::: \
-  "$MM_NVCC" -O3 -arch="$MM_ARCH" -std=c++20 "${CPP_SIZE[@]}" \
+  "$MM_NVCC" -O3 -arch="$MM_ARCH" -std=c++20 -Xcompiler -fopenmp "${CPP_SIZE[@]}" \
     "$MM_SRC/cuda/matmul_cuda_cpp20_faster.cu" -o "$MM_BIN/matmul_cuda_cpp20_faster" ::: \
   "$MM_BIN/matmul_cuda_cpp20_faster"
 

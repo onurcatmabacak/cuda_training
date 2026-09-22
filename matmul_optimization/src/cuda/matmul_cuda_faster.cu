@@ -69,15 +69,18 @@ __global__ void matmul_tiled(const float *__restrict__ A,
     C[row * n + col] = acc;
 }
 
-// Simple CPU reference (single-threaded) for verification
+// CPU reference for verification. Cache-friendly (i,k,j) order and parallelised
+// with OpenMP: at N=4096 the naive single-threaded version takes ~25 minutes.
+// NOTE: C must be zero-initialised before calling.
 void matmul_cpu(const float *A, const float *B, float *C, int n) {
+    #pragma omp parallel for schedule(static)
     for (int i = 0; i < n; ++i) {
-        for (int j = 0; j < n; ++j) {
-            float s = 0.0f;
-            for (int k = 0; k < n; ++k) {
-                s += A[i * n + k] * B[k * n + j];
-            }
-            C[i * n + j] = s;
+        float *Ci = C + (size_t)i * n;
+        for (int k = 0; k < n; ++k) {
+            const float a = A[(size_t)i * n + k];
+            const float *Bk = B + (size_t)k * n;
+            for (int j = 0; j < n; ++j)
+                Ci[j] += a * Bk[j];
         }
     }
 }
@@ -119,12 +122,25 @@ int main(void) {
     checkCuda(cudaEventCreate(&start), "cudaEventCreate start");
     checkCuda(cudaEventCreate(&stop), "cudaEventCreate stop");
 
-    // Warmup
-    checkCuda(cudaEventRecord(start), "cudaEventRecord start warmup");
-    matmul_tiled<<<gridDim, blockDim>>>(d_A, d_B, d_C, N);
-    checkCuda(cudaGetLastError(), "kernel launch warmup");
-    checkCuda(cudaEventRecord(stop), "cudaEventRecord stop warmup");
-    checkCuda(cudaEventSynchronize(stop), "cudaEventSynchronize warmup");
+    // Warm up until the GPU reaches its boost clock. Short kernels timed right
+    // after startup otherwise run at the idle clock (P8 ~135 MHz vs boosted
+    // P0 ~1200 MHz on this laptop), reading ~8x too slow.
+    {
+        cudaEvent_t warm_start, warm_stop;
+        checkCuda(cudaEventCreate(&warm_start), "warmup event");
+        checkCuda(cudaEventCreate(&warm_stop), "warmup event");
+        checkCuda(cudaEventRecord(warm_start), "warmup record");
+        float warm_ms = 0.0f;
+        do {
+            matmul_tiled<<<gridDim, blockDim>>>(d_A, d_B, d_C, N);
+            checkCuda(cudaGetLastError(), "kernel launch warmup");
+            checkCuda(cudaEventRecord(warm_stop), "warmup record stop");
+            checkCuda(cudaEventSynchronize(warm_stop), "warmup sync");
+            checkCuda(cudaEventElapsedTime(&warm_ms, warm_start, warm_stop), "warmup elapsed");
+        } while (warm_ms < 2000.0f);
+        checkCuda(cudaEventDestroy(warm_start), "warmup destroy");
+        checkCuda(cudaEventDestroy(warm_stop), "warmup destroy");
+    }
 
     // Timed runs
     float ms_total = 0.0f;
@@ -144,7 +160,7 @@ int main(void) {
     checkCuda(cudaMemcpy(h_C, d_C, bytes, cudaMemcpyDeviceToHost), "cudaMemcpy D2H C");
 
     // Compute reference on CPU (might take time)
-    printf("Computing CPU reference (single-threaded)... (this may take a while)\n");
+    printf("Computing CPU reference (parallel i-k-j)...\n");
     matmul_cpu(h_A, h_B, h_C_ref, N);
 
     // Verify results (relative error)

@@ -122,6 +122,10 @@ echo "${C_BOLD}══ summary ══${C_RESET}"
 if have python3; then
   python3 "$SCRIPTS/summarize.py" "$MM_RESULTS" >"$MM_RESULTS/summary.md"
   cat "$MM_RESULTS/summary.md"
+  # Stable, easy-to-find single file with every result + raw outputs.
+  cp -f "$MM_RESULTS/FULL_REPORT.md" "$HERE/RESULTS.md"
+  # Refresh the results table embedded in the READMEs (visible on GitHub).
+  python3 "$SCRIPTS/update_readme.py" "$MM_RESULTS" "$HERE/README.md" "$HERE/../README.md" || true
 else
   warn "python3 not found -- skipping summary generation"
 fi
@@ -129,3 +133,4 @@ fi
 echo
 ok "Done. Results: $MM_RESULTS"
 ok "       Latest: $HERE/results/latest"
+ok "   Single file: $HERE/RESULTS.md"

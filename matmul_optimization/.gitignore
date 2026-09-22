@@ -8,3 +8,6 @@
 # Per-run results (results/legacy/ is tracked)
 /results/run_*/
 /results/latest
+
+# Stable single-file report written by run_all.sh
+/RESULTS.md

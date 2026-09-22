@@ -1,27 +1,39 @@
 # matmul_cublas_julia.jl
 using CUDA
-using BenchmarkTools
+using LinearAlgebra
 
 # Matrix size and number of runs
 const N = parse(Int, get(ENV, "MATMUL_N", "4096"))
 const RUNS = parse(Int, get(ENV, "MATMUL_RUNS", "100"))
 
-# Initialize random Float32 matrices directly on the GPU
+# Initialize random Float64 matrices directly on the GPU
 A_d = CUDA.rand(Float64, N, N)
 B_d = CUDA.rand(Float64, N, N)
 C_d = CUDA.zeros(Float64, N, N)
 
 # Warmup to initialize cuBLAS and GPU
-C_d .= A_d * B_d
+mul!(C_d, A_d, B_d)
 synchronize()
 
-println("GPU Julia 4096x4096 matrix multiplication (cuBLAS)")
+# Keep the GPU busy until it boosts its clocks (short kernels otherwise measure
+# at the idle clock).
+let t0 = time()
+    while time() - t0 < 2.0
+        mul!(C_d, A_d, B_d)
+        synchronize()
+    end
+end
 
-# Measure average time over RUNS
+println("GPU Julia $(N)x$(N) matrix multiplication (cuBLAS DGEMM, Float64)")
+
+# Measure average time over RUNS.
+# The kernels are asynchronous, so we MUST synchronize before stopping the
+# clock -- otherwise @elapsed only measures the time to enqueue the launches.
 total_time = @elapsed begin
     for _ in 1:RUNS
-        C_d .= A_d * B_d
+        mul!(C_d, A_d, B_d)
     end
+    synchronize()
 end
 
 avg_time = total_time / RUNS  # average time per run in seconds
