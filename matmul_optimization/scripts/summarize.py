@@ -228,9 +228,10 @@ def main() -> int:
     lines.append("")
 
     # ---- one consolidated table containing every benchmark ----------------
+    # Sorted by GFLOPS, highest first; rows without a GFLOPS value go last.
     def sort_key(r):
-        cat = CATEGORY_ORDER.index(r["category"]) if r["category"] in CATEGORY_ORDER else 99
-        return (cat, STATUS_ORDER.get(r["status"], 9), r["name"])
+        g = r["gflops"]
+        return (g is None, -(g or 0.0), r["name"])
 
     all_table = ["| Category | Benchmark | Status | Avg time | GFLOPS | Notes |",
                  "|---|---|---|---|---|---|"]
@@ -252,7 +253,7 @@ def main() -> int:
 
     for cat in categories:
         cat_rows = [r for r in rows if r["category"] == cat]
-        cat_rows.sort(key=lambda r: (STATUS_ORDER.get(r["status"], 9), r["name"]))
+        cat_rows.sort(key=lambda r: (r["gflops"] is None, -(r["gflops"] or 0.0), r["name"]))
         lines.append(f"### {cat}")
         lines.append("")
         lines.append("| Benchmark | Status | Avg time | GFLOPS | Notes |")
