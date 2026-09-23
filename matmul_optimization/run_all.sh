@@ -15,7 +15,7 @@ set -o pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SCRIPTS="$HERE/scripts"
-ALL_CATS=(cpu_c cpu_mkl cuda julia demos)
+ALL_CATS=(cpu_c cpu_mkl cuda cpp26 rust julia demos)
 
 usage() {
   cat <<'EOF'
@@ -33,7 +33,7 @@ Options:
   --build-only      compile everything but run no benchmarks
   -h, --help        show this help
 
-Categories: cpu_c  cpu_mkl  cuda  julia  demos
+Categories: cpu_c  cpu_mkl  cuda  cpp26  rust  julia  demos
 EOF
 }
 
