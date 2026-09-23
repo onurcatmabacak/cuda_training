@@ -25,8 +25,8 @@ Options:
   --only CATS       comma-separated categories to run  (default: all)
   --skip CATS       comma-separated categories to skip
   --quick           quick smoke test: --size 512 --runs 3 --timeout 300
-  --size N          matrix dimension (default: each benchmark's own)
-  --runs R          timed runs per benchmark (default: each benchmark's own)
+  --size N          matrix dimension (default 1024, same for every benchmark)
+  --runs R          timed runs per benchmark (default 10, same for every benchmark)
   --threads T       CPU threads for BLAS/OpenMP (default: nproc)
   --timeout SEC     per-benchmark timeout, 0 = none (default 1800)
   --cuda-arch ARCH  CUDA gencode target (default sm_50, the GTX 960M)
@@ -39,10 +39,10 @@ EOF
 
 MM_ONLY=""
 MM_SKIP=""
-# Empty = keep each benchmark's own built-in size/run count.  --size/--runs/
-# --quick fill these in and then override every benchmark uniformly.
-MATMUL_N=""
-MATMUL_RUNS=""
+# Uniform configuration: every benchmark uses the same matrix size and run count
+# so the results are directly comparable.  All benchmarks are Float64.
+MATMUL_N=1024
+MATMUL_RUNS=10
 MATMUL_THREADS="$(nproc 2>/dev/null || echo 8)"
 MATMUL_TIMEOUT=1800
 MATMUL_CUDA_ARCH="${MATMUL_CUDA_ARCH:-sm_50}"

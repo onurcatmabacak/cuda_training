@@ -1,46 +1,42 @@
 // matmul_cuda_best.cu
-// Optimised SGEMM: a hand-written register-tiled CUDA kernel vs cuBLAS.
+// Float64 DGEMM: a hand-written register-tiled CUDA kernel vs cuBLAS.
 //
-//   Micro-tile per thread : TM x TN = 8 x 8  (64 FP32 accumulators)
-//   Block tile            : BM x BN x BK = 128 x 128 x 16, 256 threads
-//   Shared memory         : As[BM][BK] + Bs[BK][BN]
-//   Bank-conflict-free    : the A fragment is a warp broadcast
-//                           (As[ty*TM+i][k]); the B fragment is stride-1
-//                           (Bs[k][tx + j*16]) instead of a strided pattern.
+//   Micro-tile per thread : TM x TN = 4 x 4  (16 FP64 accumulators)
+//   Block tile            : BM x BN x BK = 64 x 64 x 16, 256 threads
+//   Shared memory         : As[BM][BK] + Bs[BK][BN]  (bank-conflict-free:
+//                           the A fragment is a warp broadcast, the B fragment
+//                           is stride-1 via columns tx + j*16).
 //
 // Usage: matmul_cuda_best [cuda|cublas|both]
-//   cuda   -> time the hand-written kernel
-//   cublas -> time cuBLAS SGEMM
-//   both   -> time both and check the custom kernel against cuBLAS
 
+#include <cmath>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
-#include <cmath>
-#include <cuda_runtime.h>
 #include <cublas_v2.h>
+#include <cuda_runtime.h>
 
 #ifndef N
-#define N 4096
+#define N 1024
 #endif
 #ifndef RUNS
 #define RUNS 10
 #endif
 
 #ifndef BM
-#define BM 128
+#define BM 64
 #endif
 #ifndef BN
-#define BN 128
+#define BN 64
 #endif
 #ifndef BK
-#define BK 32
+#define BK 16
 #endif
 #ifndef TM
-#define TM 8
+#define TM 4
 #endif
 #ifndef TN
-#define TN 8
+#define TN 4
 #endif
 #ifndef THREADS
 #define THREADS 256
@@ -66,10 +62,10 @@
   } while (0)
 
 __global__ void __launch_bounds__(THREADS, 2)
-sgemm_regtile(const float *__restrict__ A, const float *__restrict__ B,
-              float *__restrict__ C, int M, int Nn, int K) {
-  __shared__ float As[BM][BK];
-  __shared__ float Bs[BK][BN];
+dgemm_regtile(const double *__restrict__ A, const double *__restrict__ B,
+              double *__restrict__ C, int M, int Nn, int K) {
+  __shared__ double As[BM][BK];
+  __shared__ double Bs[BK][BN];
 
   const int tx = threadIdx.x; // 0..15
   const int ty = threadIdx.y; // 0..15
@@ -77,33 +73,33 @@ sgemm_regtile(const float *__restrict__ A, const float *__restrict__ B,
   const int row0 = blockIdx.y * BM;
   const int col0 = blockIdx.x * BN;
 
-  float acc[TM][TN];
+  double acc[TM][TN];
 #pragma unroll
   for (int i = 0; i < TM; ++i)
 #pragma unroll
     for (int j = 0; j < TN; ++j)
-      acc[i][j] = 0.0f;
+      acc[i][j] = 0.0;
 
   for (int k0 = 0; k0 < K; k0 += BK) {
-    // A tile: BM*BK elements, contiguous in K -> coalesced loads, no smem conflict
+    // A tile: BM*BK elements, contiguous in K -> coalesced, no smem conflict
 #pragma unroll
     for (int idx = tid; idx < BM * BK; idx += THREADS) {
       const int m = idx / BK, k = idx % BK;
       const int gm = row0 + m, gk = k0 + k;
-      As[m][k] = (gm < M && gk < K) ? A[(size_t)gm * K + gk] : 0.0f;
+      As[m][k] = (gm < M && gk < K) ? A[(size_t)gm * K + gk] : 0.0;
     }
     // B tile: BK*BN elements, contiguous in N
 #pragma unroll
     for (int idx = tid; idx < BK * BN; idx += THREADS) {
       const int k = idx / BN, n = idx % BN;
       const int gk = k0 + k, gn = col0 + n;
-      Bs[k][n] = (gk < K && gn < Nn) ? B[(size_t)gk * Nn + gn] : 0.0f;
+      Bs[k][n] = (gk < K && gn < Nn) ? B[(size_t)gk * Nn + gn] : 0.0;
     }
     __syncthreads();
 
 #pragma unroll
     for (int k = 0; k < BK; ++k) {
-      float a[TM], b[TN];
+      double a[TM], b[TN];
 #pragma unroll
       for (int i = 0; i < TM; ++i)
         a[i] = As[ty * TM + i][k]; // broadcast within the warp
@@ -131,9 +127,9 @@ sgemm_regtile(const float *__restrict__ A, const float *__restrict__ B,
   }
 }
 
-static void fill_mat(float *p, size_t n, int mod, float base) {
+static void fill_mat(double *p, size_t n, int mod, double base) {
   for (size_t i = 0; i < n; ++i)
-    p[i] = (float)((i % mod) + 1) * 1e-3f + base;
+    p[i] = (double)((i % mod) + 1) * 1e-3 + base;
 }
 
 int main(int argc, char **argv) {
@@ -141,16 +137,16 @@ int main(int argc, char **argv) {
   const bool do_cuda = !strcmp(which, "cuda") || !strcmp(which, "both");
   const bool do_blas = !strcmp(which, "cublas") || !strcmp(which, "both");
   const int M = N, Nn = N, K = N;
-  const size_t ne = (size_t)N * N, bytes = ne * sizeof(float);
+  const size_t ne = (size_t)N * N, bytes = ne * sizeof(double);
   const double flop = 2.0 * (double)N * N * N;
 
-  float *hA = (float *)malloc(bytes), *hB = (float *)malloc(bytes),
-        *hC = (float *)malloc(bytes);
-  fill_mat(hA, ne, 17, 1.0f);
-  fill_mat(hB, ne, 13, 2.0f);
+  double *hA = (double *)malloc(bytes), *hB = (double *)malloc(bytes),
+         *hC = (double *)malloc(bytes);
+  fill_mat(hA, ne, 17, 1.0);
+  fill_mat(hB, ne, 13, 2.0);
   memset(hC, 0, bytes);
 
-  float *dA, *dB, *dC, *dCref;
+  double *dA, *dB, *dC, *dCref;
   CUDA_CHECK(cudaMalloc(&dA, bytes));
   CUDA_CHECK(cudaMalloc(&dB, bytes));
   CUDA_CHECK(cudaMalloc(&dC, bytes));
@@ -160,10 +156,10 @@ int main(int argc, char **argv) {
 
   cublasHandle_t h;
   CUBLAS_CHECK(cublasCreate(&h));
-  const float alpha = 1.0f, beta = 0.0f;
+  const double alpha = 1.0, beta = 0.0;
 
   // cuBLAS reference (also used to verify the custom kernel)
-  CUBLAS_CHECK(cublasSgemm(h, CUBLAS_OP_N, CUBLAS_OP_N, Nn, Nn, Nn, &alpha, dA,
+  CUBLAS_CHECK(cublasDgemm(h, CUBLAS_OP_N, CUBLAS_OP_N, Nn, Nn, Nn, &alpha, dA,
                            Nn, dB, Nn, &beta, dCref, Nn));
   CUDA_CHECK(cudaDeviceSynchronize());
 
@@ -174,8 +170,8 @@ int main(int argc, char **argv) {
   CUDA_CHECK(cudaEventCreate(&ev_start));
   CUDA_CHECK(cudaEventCreate(&ev_stop));
 
-  // ---- warm up the GPU to boost clocks (2 s of sustained work) -------------
-  if (do_cuda || do_blas) {
+  // Warm up the GPU until it boosts its clocks (~2 s of sustained work).
+  {
     cudaEvent_t w0, w1;
     CUDA_CHECK(cudaEventCreate(&w0));
     CUDA_CHECK(cudaEventCreate(&w1));
@@ -183,9 +179,9 @@ int main(int argc, char **argv) {
     float wms = 0.0f;
     do {
       if (do_cuda)
-        sgemm_regtile<<<grid, block>>>(dA, dB, dC, M, Nn, K);
+        dgemm_regtile<<<grid, block>>>(dA, dB, dC, M, Nn, K);
       else
-        CUBLAS_CHECK(cublasSgemm(h, CUBLAS_OP_N, CUBLAS_OP_N, Nn, Nn, Nn,
+        CUBLAS_CHECK(cublasDgemm(h, CUBLAS_OP_N, CUBLAS_OP_N, Nn, Nn, Nn,
                                  &alpha, dA, Nn, dB, Nn, &beta, dC, Nn));
       CUDA_CHECK(cudaEventRecord(w1));
       CUDA_CHECK(cudaEventSynchronize(w1));
@@ -202,7 +198,7 @@ int main(int argc, char **argv) {
     float total = 0.0f;
     for (int r = 0; r < RUNS; ++r) {
       CUDA_CHECK(cudaEventRecord(ev_start));
-      sgemm_regtile<<<grid, block>>>(dA, dB, dC, M, Nn, K);
+      dgemm_regtile<<<grid, block>>>(dA, dB, dC, M, Nn, K);
       CUDA_CHECK(cudaGetLastError());
       CUDA_CHECK(cudaEventRecord(ev_stop));
       CUDA_CHECK(cudaEventSynchronize(ev_stop));
@@ -217,7 +213,7 @@ int main(int argc, char **argv) {
     float total = 0.0f;
     for (int r = 0; r < RUNS; ++r) {
       CUDA_CHECK(cudaEventRecord(ev_start));
-      CUBLAS_CHECK(cublasSgemm(h, CUBLAS_OP_N, CUBLAS_OP_N, Nn, Nn, Nn, &alpha,
+      CUBLAS_CHECK(cublasDgemm(h, CUBLAS_OP_N, CUBLAS_OP_N, Nn, Nn, Nn, &alpha,
                                dA, Nn, dB, Nn, &beta, dC, Nn));
       CUDA_CHECK(cudaEventRecord(ev_stop));
       CUDA_CHECK(cudaEventSynchronize(ev_stop));
@@ -228,25 +224,23 @@ int main(int argc, char **argv) {
     blas_ms = total / RUNS;
   }
 
-  // ---- verification of the custom kernel against cuBLAS --------------------
+  // Verify the custom kernel against cuBLAS.
   double maxrel = 0.0;
   if (do_cuda) {
-    float *hK = (float *)malloc(bytes), *hR = (float *)malloc(bytes);
+    double *hK = (double *)malloc(bytes), *hR = (double *)malloc(bytes);
     CUDA_CHECK(cudaMemcpy(hK, dC, bytes, cudaMemcpyDeviceToHost));
     CUDA_CHECK(cudaMemcpy(hR, dCref, bytes, cudaMemcpyDeviceToHost));
     for (size_t i = 0; i < ne; ++i) {
       double ref = hR[i], got = hK[i];
       double rel = fabs(ref - got) / (fabs(ref) + 1e-12);
-      if (rel > maxrel)
-        maxrel = rel;
+      if (rel > maxrel) maxrel = rel;
     }
     free(hK);
     free(hR);
   }
 
-  // ---- report (single result per invocation, standard format) --------------
   if (do_cuda) {
-    printf("Custom register-tiled SGEMM N=%d (TM=TN=%d, BM=BN=%d, BK=%d)\n", N,
+    printf("Custom register-tiled DGEMM N=%d (TM=TN=%d, BM=BN=%d, BK=%d)\n", N,
            TM, BM, BK);
     printf("Average kernel time: %.3f ms\n", cuda_ms);
     printf("Effective GFLOPS: %.1f\n", flop / (cuda_ms * 1e6));
@@ -254,7 +248,7 @@ int main(int argc, char **argv) {
     printf("Result: %s\n", maxrel < 1e-4 ? "OK" : "MISMATCH");
   }
   if (do_blas) {
-    printf("cuBLAS SGEMM N=%d\n", N);
+    printf("cuBLAS DGEMM N=%d\n", N);
     printf("Average kernel time: %.3f ms\n", blas_ms);
     printf("Effective GFLOPS: %.1f\n", flop / (blas_ms * 1e6));
   }

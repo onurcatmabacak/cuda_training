@@ -1,164 +1,148 @@
-// matmul_cuda_cpp20_960m_fast.cu
-// C++20 CUDA matrix multiplication for GeForce 960M
-// Features:
-// - 1 thread per output element (best for Maxwell)
-// - Shared-memory tiling (32x32)
-// - Pinned host memory
-// - Loop unrolling in inner tile
-// - Modern C++20 host code
-
-#include <iostream>
-#include <vector>
+// matmul_cuda_cpp20_faster.cu
+// C++20 Float64 DGEMM, tiled shared-memory kernel, vectorised host code.
 #include <cstdlib>
 #include <cmath>
 #include <chrono>
+#include <iostream>
+#include <vector>
 #include <cuda_runtime.h>
 
-#ifndef MATMUL_N
-#define MATMUL_N 4096
+#ifndef N
+#define N 4096
 #endif
-#ifndef MATMUL_RUNS
-#define MATMUL_RUNS 100
+#define TILE 32
+#ifndef RUNS
+#define RUNS 100
 #endif
 
-constexpr int N = MATMUL_N;
-constexpr int TILE = 32;
-constexpr int RUNS = MATMUL_RUNS;
-
-inline void checkCuda(cudaError_t e, const char* msg) {
-    if (e != cudaSuccess) {
-        std::cerr << "CUDA Error " << msg << ": " << cudaGetErrorString(e) << std::endl;
-        std::exit(EXIT_FAILURE);
-    }
+inline void checkCuda(cudaError_t e, const char *msg) {
+  if (e != cudaSuccess) {
+    std::cerr << "CUDA Error " << msg << ": " << cudaGetErrorString(e) << "\n";
+    std::exit(EXIT_FAILURE);
+  }
 }
 
-__global__ void matmul_tiled(const float* __restrict__ A,
-                             const float* __restrict__ B,
-                             float* __restrict__ C,
-                             int n) {
-    __shared__ float sA[TILE][TILE];
-    __shared__ float sB[TILE][TILE];
+__global__ void matmul_tiled(const double *__restrict__ A,
+                             const double *__restrict__ B,
+                             double *__restrict__ C, int n) {
+  __shared__ double sA[TILE][TILE];
+  __shared__ double sB[TILE][TILE];
 
-    int tx = threadIdx.x;
-    int ty = threadIdx.y;
-    int row = blockIdx.y * TILE + ty;
-    int col = blockIdx.x * TILE + tx;
+  const int tx = threadIdx.x;
+  const int ty = threadIdx.y;
+  const int row = blockIdx.y * TILE + ty;
+  const int col = blockIdx.x * TILE + tx;
 
-    float acc = 0.0f;
+  double acc = 0.0;
 
-    for (int m = 0; m < n; m += TILE) {
-        sA[ty][tx] = A[row * n + (m + tx)];
-        sB[ty][tx] = B[(m + ty) * n + col];
+  for (int m = 0; m < n; m += TILE) {
+    sA[ty][tx] = A[row * n + (m + tx)];
+    sB[ty][tx] = B[(m + ty) * n + col];
 
-        __syncthreads();
+    __syncthreads();
 
-        #pragma unroll
-        for (int k = 0; k < TILE; ++k) {
-            acc += sA[ty][k] * sB[k][tx];
-        }
-        __syncthreads();
+#pragma unroll
+    for (int k = 0; k < TILE; ++k) {
+      acc += sA[ty][k] * sB[k][tx];
     }
 
-    C[row * n + col] = acc;
+    __syncthreads();
+  }
+
+  C[row * n + col] = acc;
 }
 
-// CPU reference for verification: cache-friendly (i,k,j) and parallelised.
-// NOTE: C must be zero-initialised before calling.
-void matmul_cpu(const std::vector<float>& A, const std::vector<float>& B, std::vector<float>& C, int n) {
-    #pragma omp parallel for schedule(static)
-    for (int i = 0; i < n; ++i) {
-        float *Ci = C.data() + (size_t)i * n;
-        for (int k = 0; k < n; ++k) {
-            const float a = A[(size_t)i * n + k];
-            const float *Bk = B.data() + (size_t)k * n;
-            for (int j = 0; j < n; ++j)
-                Ci[j] += a * Bk[j];
-        }
+// CPU reference: cache-friendly (i,k,j) and parallelised. C zero-initialised.
+void matmul_cpu(const std::vector<double> &A, const std::vector<double> &B,
+                std::vector<double> &C, int n) {
+#pragma omp parallel for schedule(static)
+  for (int i = 0; i < n; ++i) {
+    double *Ci = C.data() + (size_t)i * n;
+    for (int k = 0; k < n; ++k) {
+      const double a = A[(size_t)i * n + k];
+      const double *Bk = B.data() + (size_t)k * n;
+      for (int j = 0; j < n; ++j)
+        Ci[j] += a * Bk[j];
     }
+  }
 }
 
 int main() {
-    const size_t bytes = N * N * sizeof(float);
+  const size_t ne = (size_t)N * N;
+  const size_t bytes = ne * sizeof(double);
 
-    float *h_A{}, *h_B{}, *h_C{}, *h_C_ref{};
-    checkCuda(cudaMallocHost(&h_A, bytes), "cudaMallocHost A");
-    checkCuda(cudaMallocHost(&h_B, bytes), "cudaMallocHost B");
-    checkCuda(cudaMallocHost(&h_C, bytes), "cudaMallocHost C");
-    checkCuda(cudaMallocHost(&h_C_ref, bytes), "cudaMallocHost C_ref");
+  std::vector<double> h_A(ne), h_B(ne), h_C(ne), h_C_ref(ne, 0.0);
+  for (size_t i = 0; i < ne; ++i) {
+    h_A[i] = static_cast<double>((i % 17) + 1) * 1e-3 + 1.0;
+    h_B[i] = static_cast<double>((i % 13) + 1) * 1e-3 + 2.0;
+  }
 
-    for (int i = 0; i < N*N; ++i) {
-        h_A[i] = static_cast<float>((i % 17 + 1) * 1e-3f + 1.0f);
-        h_B[i] = static_cast<float>((i % 13 + 1) * 1e-3f + 2.0f);
-        h_C[i] = 0.0f;
-        h_C_ref[i] = 0.0f;
-    }
+  double *d_A{}, *d_B{}, *d_C{};
+  checkCuda(cudaMalloc(&d_A, bytes), "d_A");
+  checkCuda(cudaMalloc(&d_B, bytes), "d_B");
+  checkCuda(cudaMalloc(&d_C, bytes), "d_C");
 
-    float *d_A{}, *d_B{}, *d_C{};
-    checkCuda(cudaMalloc(&d_A, bytes), "d_A");
-    checkCuda(cudaMalloc(&d_B, bytes), "d_B");
-    checkCuda(cudaMalloc(&d_C, bytes), "d_C");
+  checkCuda(cudaMemcpy(d_A, h_A.data(), bytes, cudaMemcpyHostToDevice), "H2D A");
+  checkCuda(cudaMemcpy(d_B, h_B.data(), bytes, cudaMemcpyHostToDevice), "H2D B");
 
-    checkCuda(cudaMemcpy(d_A, h_A, bytes, cudaMemcpyHostToDevice), "H2D A");
-    checkCuda(cudaMemcpy(d_B, h_B, bytes, cudaMemcpyHostToDevice), "H2D B");
+  dim3 block(TILE, TILE);
+  dim3 grid(N / TILE, N / TILE);
 
-    dim3 block(TILE, TILE);
-    dim3 grid(N / TILE, N / TILE);
+  cudaEvent_t start, stop;
+  checkCuda(cudaEventCreate(&start), "start event");
+  checkCuda(cudaEventCreate(&stop), "stop event");
 
-    cudaEvent_t start, stop;
-    checkCuda(cudaEventCreate(&start), "start event");
-    checkCuda(cudaEventCreate(&stop), "stop event");
+  // Warm up until the GPU reaches its boost clock.
+  {
+    auto warm_start = std::chrono::steady_clock::now();
+    double warm_s = 0.0;
+    do {
+      matmul_tiled<<<grid, block>>>(d_A, d_B, d_C, N);
+      checkCuda(cudaGetLastError(), "warmup");
+      checkCuda(cudaDeviceSynchronize(), "sync warmup");
+      warm_s = std::chrono::duration<double>(std::chrono::steady_clock::now() -
+                                             warm_start)
+                   .count();
+    } while (warm_s < 2.0);
+  }
 
-    // Warm up until the GPU reaches its boost clock (short kernels otherwise
-    // measure at the idle clock, P8 ~135 MHz vs boosted ~1200 MHz).
-    {
-        auto warm_start = std::chrono::steady_clock::now();
-        double warm_s = 0.0;
-        do {
-            matmul_tiled<<<grid, block>>>(d_A, d_B, d_C, N);
-            checkCuda(cudaGetLastError(), "warmup");
-            checkCuda(cudaDeviceSynchronize(), "sync warmup");
-            warm_s = std::chrono::duration<double>(
-                        std::chrono::steady_clock::now() - warm_start).count();
-        } while (warm_s < 2.0);
-    }
+  float ms_total = 0.0f;
+  for (int r = 0; r < RUNS; ++r) {
+    checkCuda(cudaEventRecord(start), "start");
+    matmul_tiled<<<grid, block>>>(d_A, d_B, d_C, N);
+    checkCuda(cudaGetLastError(), "kernel launch");
+    checkCuda(cudaEventRecord(stop), "stop");
+    checkCuda(cudaEventSynchronize(stop), "sync");
+    float ms;
+    checkCuda(cudaEventElapsedTime(&ms, start, stop), "elapsed");
+    ms_total += ms;
+  }
+  float ms_avg = ms_total / RUNS;
 
-    float ms_total = 0.0f;
-    for (int r = 0; r < RUNS; ++r) {
-        checkCuda(cudaEventRecord(start), "start");
-        matmul_tiled<<<grid, block>>>(d_A, d_B, d_C, N);
-        checkCuda(cudaGetLastError(), "kernel launch");
-        checkCuda(cudaEventRecord(stop), "stop");
-        checkCuda(cudaEventSynchronize(stop), "sync");
-        float ms;
-        checkCuda(cudaEventElapsedTime(&ms, start, stop), "elapsed");
-        ms_total += ms;
-    }
-    float ms_avg = ms_total / RUNS;
+  checkCuda(cudaMemcpy(h_C.data(), d_C, bytes, cudaMemcpyDeviceToHost), "D2H C");
 
-    checkCuda(cudaMemcpy(h_C, d_C, bytes, cudaMemcpyDeviceToHost), "D2H C");
+  std::cout << "Computing CPU reference (parallel i-k-j)...\n";
+  matmul_cpu(h_A, h_B, h_C_ref, N);
 
-    std::vector<float> vec_A(h_A, h_A + N*N);
-    std::vector<float> vec_B(h_B, h_B + N*N);
-    std::vector<float> vec_C_ref(N*N);
-    matmul_cpu(vec_A, vec_B, vec_C_ref, N);
+  double maxRelErr = 0.0;
+  for (size_t i = 0; i < ne; ++i) {
+    double rel = std::abs(h_C_ref[i] - h_C[i]) / (std::abs(h_C_ref[i]) + 1e-12);
+    if (rel > maxRelErr) maxRelErr = rel;
+  }
 
-    double maxRelErr = 0.0;
-    for (int i = 0; i < N*N; ++i) {
-        double rel = std::abs(vec_C_ref[i] - h_C[i]) / (std::abs(vec_C_ref[i]) + 1e-12);
-        if (rel > maxRelErr) maxRelErr = rel;
-    }
+  double gflops = 2.0 * (double)N * N * N / (ms_avg * 1e6);
+  std::cout << "Matrix mul " << N << "x" << N << " using CUDA tiled DGEMM kernel\n";
+  std::cout << "Average kernel time over " << RUNS << " runs: " << ms_avg
+            << " ms\n";
+  std::cout << "Effective GFLOPS: " << gflops << "\n";
+  std::cout << "Max relative error vs CPU: " << maxRelErr << "\n";
+  std::cout << (maxRelErr < 1e-4 ? "Result: OK\n" : "Result: MISMATCH\n");
 
-    double gflops = 2.0 * N * N * N / (ms_avg * 1e6);
-    std::cout << "Matrix mul " << N << "x" << N << " using CUDA 960M kernel\n";
-    std::cout << "Average kernel time: " << ms_avg << " ms\n";
-    std::cout << "Effective GFLOPS: " << gflops << "\n";
-    std::cout << "Max relative error vs CPU: " << maxRelErr << "\n";
-    std::cout << (maxRelErr < 1e-4 ? "Result: OK\n" : "Result: MISMATCH\n");
+  cudaEventDestroy(start);
+  cudaEventDestroy(stop);
+  cudaFree(d_A);
+  cudaFree(d_B);
+  cudaFree(d_C);
 
-    cudaEventDestroy(start);
-    cudaEventDestroy(stop);
-    cudaFree(d_A); cudaFree(d_B); cudaFree(d_C);
-    cudaFreeHost(h_A); cudaFreeHost(h_B); cudaFreeHost(h_C); cudaFreeHost(h_C_ref);
-
-    return 0;
+  return 0;
 }

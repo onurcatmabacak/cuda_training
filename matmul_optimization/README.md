@@ -45,54 +45,53 @@ below the chip's peak._
 
 <!-- RESULTS:START -->
 
-_20260922_195159 — size **default**, **10** runs, 8 threads, CUDA arch `sm_50`. GFLOPS is as reported, or computed as `2·N³/t` when only a time is printed._
+_20260923_045119 — size **1024**, **10** runs, 8 threads, CUDA arch `sm_50`. GFLOPS is as reported, or computed as `2·N³/t` when only a time is printed._
 
 | Category | Benchmark | Status | Avg time | GFLOPS | Notes |
 |---|---|---|---|---|---|
-| cpu_c | `cpu_c__matmul_c11_O1` | OK | 5.9570 s | 0.36 |  |
-| cpu_c | `cpu_c__matmul_c11_O2` | OK | 4.3240 s | 0.50 |  |
-| cpu_c | `cpu_c__matmul_c11_O3` | OK | 4.2910 s | 0.50 |  |
-| cpu_c | `cpu_c__matmul_c11_index_order_O3` | OK | 1.2010 s | 1.79 |  |
-| cpu_c | `cpu_c__matmul_c11_openblas_O3` | OK | 633.000 ms | 3.39 |  |
-| cpu_c | `cpu_c__matmul_c11_parallel_loops_O3` | OK | 367.000 ms | 5.86 |  |
-| cpu_c | `cpu_c__matmul_c23_O1` | OK | 5.9230 s | 0.36 |  |
-| cpu_c | `cpu_c__matmul_c23_O2` | OK | 4.2630 s | 0.50 |  |
-| cpu_c | `cpu_c__matmul_c23_O3` | OK | 4.3060 s | 0.50 |  |
-| cpu_c | `cpu_c__matmul_c99_O1` | OK | 5.9150 s | 0.36 |  |
-| cpu_c | `cpu_c__matmul_c99_O2` | OK | 4.2370 s | 0.51 |  |
-| cpu_c | `cpu_c__matmul_c99_O3` | OK | 4.2440 s | 0.51 |  |
-| cpu_mkl | `cpu_mkl__matmul_c11_intel_mkl_flags1` | OK | 3.1014 s | 44.32 | C=1036.157623 |
-| cpu_mkl | `cpu_mkl__matmul_c11_intel_mkl_flags2` | OK | 3.0865 s | 44.53 | C=1015.716854 |
-| cpu_mkl | `cpu_mkl__matmul_c11_intel_mkl_flags3` | OK | 3.0994 s | 44.34 | C=1029.048248 |
-| cpu_mkl | `cpu_mkl__matmul_c11_intel_mkl_flags4` | OK | 3.1072 s | 44.23 | C=1034.242207 |
-| cpu_mkl | `cpu_mkl__matmul_cpp20_intel_mkl` | OK | 3.2011 s | 42.93 | C=1034.18 |
-| cuda | `cuda__matmul_cublas_c11` | OK | 3.2313 s | 42.53 | C=8294.665937 |
-| cuda | `cuda__matmul_cublas_cpp20` | OK | 3.3701 s | 40.78 | C=8294.67 |
-| cuda | `cuda__matmul_cublas_sgemm` | OK | 143.010 ms | 961.0 |  |
-| cuda | `cuda__matmul_cuda[cpu]` | OK | 1.9975 s | 1.08 | speedup 80.8x |
-| cuda | `cuda__matmul_cuda[gpu]` | OK | 24.707 ms | 86.92 |  |
-| cuda | `cuda__matmul_cuda_cpp20_faster` | OK | 717.605 ms | 191.5 | max rel err 1.17734e-07; OK |
-| cuda | `cuda__matmul_cuda_faster` | OK | 690.881 ms | 198.9 | max rel err 1.177e-07; OK |
-| cuda | `cuda__matmul_cuda_optimized` | OK | 233.592 ms | 588.4 | max rel err 5.769e-06; OK |
-| julia | `julia__matmul_cublas_julia` | OK | 3.1614 s | 43.47 | C=1009.0117242372455 |
-| julia | `julia__matmul_julia_cpu` | OK | 1.9259 s | 71.36 | C=1008.1797 |
-| julia | `julia__matmul_julia_gpu` | OK | 192.778 ms | 712.9 | C=1027.0885 |
-| julia | `julia__matmul_julia_gpu_faster` | OK | 1.7562 s | 78.26 | max rel err 6.041840835315907e-8 |
+| cpu_c | `cpu_c__matmul_c11_O1` | OK | 6.0070 s | 0.36 |  |
+| cpu_c | `cpu_c__matmul_c11_O2` | OK | 4.4640 s | 0.48 |  |
+| cpu_c | `cpu_c__matmul_c11_O3` | OK | 4.3520 s | 0.49 |  |
+| cpu_c | `cpu_c__matmul_c11_index_order_O3` | OK | 1.2060 s | 1.78 |  |
+| cpu_c | `cpu_c__matmul_c11_openblas_O3` | OK | 656.000 ms | 3.27 |  |
+| cpu_c | `cpu_c__matmul_c11_parallel_loops_O3` | OK | 352.000 ms | 6.10 |  |
+| cpu_c | `cpu_c__matmul_c23_O1` | OK | 6.0320 s | 0.36 |  |
+| cpu_c | `cpu_c__matmul_c23_O2` | OK | 4.3690 s | 0.49 |  |
+| cpu_c | `cpu_c__matmul_c23_O3` | OK | 4.2990 s | 0.50 |  |
+| cpu_c | `cpu_c__matmul_c99_O1` | OK | 6.3090 s | 0.34 |  |
+| cpu_c | `cpu_c__matmul_c99_O2` | OK | 4.4650 s | 0.48 |  |
+| cpu_c | `cpu_c__matmul_c99_O3` | OK | 4.3010 s | 0.50 |  |
+| cpu_mkl | `cpu_mkl__matmul_c11_intel_mkl_flags1` | OK | 73.656 ms | 29.16 | C=252.466792 |
+| cpu_mkl | `cpu_mkl__matmul_c11_intel_mkl_flags2` | OK | 71.256 ms | 30.14 | C=258.282140 |
+| cpu_mkl | `cpu_mkl__matmul_c11_intel_mkl_flags3` | OK | 69.489 ms | 30.90 | C=252.622460 |
+| cpu_mkl | `cpu_mkl__matmul_c11_intel_mkl_flags4` | OK | 69.637 ms | 30.84 | C=255.434551 |
+| cpu_mkl | `cpu_mkl__matmul_cpp20_intel_mkl` | OK | 70.610 ms | 30.41 | C=254.863 |
+| cuda | `cuda__matmul_cublas_c11` | OK | 48.772 ms | 44.03 | C=2073.633457 |
+| cuda | `cuda__matmul_cublas_cpp20` | OK | 48.770 ms | 44.03 | C=2073.63 |
+| cuda | `cuda__matmul_cublas_dgemm` | OK | 49.607 ms | 43.30 |  |
+| cuda | `cuda__matmul_cuda[cpu]` | OK | 5.0441 s | 0.43 | speedup 99.8x |
+| cuda | `cuda__matmul_cuda[gpu]` | OK | 50.539 ms | 42.49 |  |
+| cuda | `cuda__matmul_cuda_cpp20_faster` | OK | 67.757 ms | 31.69 | max rel err 4.38591e-16; OK |
+| cuda | `cuda__matmul_cuda_faster` | OK | 67.748 ms | 31.70 | max rel err 4.386e-16; OK |
+| cuda | `cuda__matmul_cuda_optimized` | OK | 52.511 ms | 40.90 | max rel err 4.463e-05; OK |
+| julia | `julia__matmul_cublas_julia` | OK | 48.782 ms | 44.02 | C=261.10895616210365 |
+| julia | `julia__matmul_julia_cpu` | OK | 77.994 ms | 27.53 | C=268.5329402090787 |
+| julia | `julia__matmul_julia_gpu` | OK | 49.120 ms | 43.72 | C=261.9018577353593 |
+| julia | `julia__matmul_julia_gpu_faster` | OK | 83.993 ms | 25.57 | max rel err 2.2160732406049341e-16 |
 | demos | `demos__vector_add_v1` | OK |  |  |  |
 | demos | `demos__vector_add_v2` | OK |  |  |  |
 | demos | `demos__whoami` | OK |  |  |  |
 
 <!-- RESULTS:END -->
 
-## Sizes and run counts
+## Sizes, runs and precision
 
-By default **each benchmark keeps its own built-in size and run count** — the
-pure-C teaching kernels use `1024`/`100`, while MKL, CUDA and Julia use
-`4096`/`100`.  `--size N` and `--runs R` override *everything* uniformly (the
-C/C++/CUDA sources read `-DN`/`-DRUNS`, Julia reads `MATMUL_N`/`MATMUL_RUNS`).
-
-The full run is long (~1 h) because several 4096×4096 benchmarks average over
-100 runs.  Use `--quick`, `--only`, or lower `--runs` while iterating.
+Every benchmark uses the **same matrix size, run count and precision** so the
+numbers are directly comparable: **`N = 1024`, 10 runs, Float64 throughout**.
+Override with `--size N` and `--runs R` (the C/CUDA sources read
+`-DN`/`-DRUNS`, Julia reads `MATMUL_N`/`MATMUL_RUNS`); `--quick` forces
+`N=512`, 3 runs.  A full run takes about 20 minutes here, most of it the
+pure-C `-O1/-O2/-O3` sweep and the Julia JIT.
 
 ## Options
 
@@ -101,8 +100,8 @@ The full run is long (~1 h) because several 4096×4096 benchmarks average over
 | `--only CATS` | comma-separated categories to run |
 | `--skip CATS` | comma-separated categories to skip |
 | `--quick` | force `N=512`, 3 runs, 300 s timeout |
-| `--size N` | matrix dimension for every benchmark (default: per-benchmark) |
-| `--runs R` | timed runs for every benchmark (default: per-benchmark) |
+| `--size N` | matrix dimension for every benchmark (default 1024) |
+| `--runs R` | timed runs for every benchmark (default 10) |
 | `--threads T` | BLAS/OpenMP threads (default `nproc`) |
 | `--timeout SEC` | per-benchmark timeout, `0` disables (default 1800) |
 | `--cuda-arch ARCH` | CUDA gencode target (default `sm_50`, the GTX 960M) |
@@ -135,32 +134,33 @@ matmul_optimization/
 | `cpu_c` | pure C triple loop `c99/c11/c23` at `-O1/-O2/-O3`; C11 `(i,k,j)` index order; OpenMP blocked/recursive; OpenBLAS DGEMM |
 | `cpu_mkl` | MKL C11 DGEMM under the four original `icx` flag sets; MKL C++20 DGEMM with NUMA-first-touch |
 | `cuda` | naive CUDA kernel vs CPU; tiled shared-memory kernel (C and C++20); cuBLAS DGEMM (C11 and C++20) |
-| `julia` | CPU BLAS; cuBLAS Float64; cuBLAS Float32; hand-written tiled CUDA kernel |
+| `julia` | CPU BLAS; cuBLAS DGEMM (Float64); hand-written tiled CUDA kernel (Float64) |
 | `demos` | `whoami`, `vector_add_v1`, `vector_add_v2` |
 
-## Best CUDA SGEMM: C++ vs Julia (Float32, N=4096)
+## Best CUDA DGEMM: C++ vs Julia (Float64, N=1024)
 
-Peak values observed on this GTX 960M. The GPU thermally throttles, so repeat
-runs can read 30–50 % lower; treat these as ceilings, not averages.
+Every entry computes the same Float64 product at N=1024 over 10 runs, so the
+numbers are directly comparable.  Values from the latest run; the laptop GPU
+throttles, so repeat runs vary.
 
 | Implementation | Language | Technique | GFLOPS |
 |---|---|---|---|
-| `cublasSgemm` | C++ | NVIDIA cuBLAS | ~1220 |
-| `mul!` (cuBLAS) | Julia | NVIDIA cuBLAS | ~970–1230 |
-| register-tiled kernel (8×8/thread) | CUDA C++ | hand-written | ~600 |
-| tiled kernel (1 output/thread) | CUDA C++ | hand-written | ~197 |
-| tiled kernel (1 output/thread) | Julia (CUDA.jl) | hand-written | ~78 |
-| register-tiled kernel (8×8/thread) | Julia (CUDA.jl) | hand-written | ~41 |
-| naive kernel | CUDA C++ | hand-written | ~85 (N=1024) |
+| `cublasDgemm` | C++ | NVIDIA cuBLAS | 44.0 |
+| `mul!` (cuBLAS DGEMM) | Julia | NVIDIA cuBLAS | 43.7 |
+| naive kernel (1 thread/output) | CUDA C++ | hand-written | 44.3 |
+| register-tiled kernel (4×4/thread) | CUDA C++ | hand-written | 40.9 |
+| tiled kernel (1 output/thread) | CUDA C++ | hand-written | 31.7 |
+| Intel MKL DGEMM | C (icx) | Intel MKL | ~30 |
+| CPU BLAS | Julia | OpenBLAS | 27.5 |
+| tiled kernel (1 output/thread) | Julia (CUDA.jl) | hand-written | 25.6 |
 
-- **Best C++ and best Julia are the same number**, because Julia's fastest GPU
-  path *is* cuBLAS: `mul!(C, A, B)` vs C's `cublasSgemm`, both ~1200 GFLOPS.
-- A tuned hand-written C++ kernel reaches about half of cuBLAS; the naive one
-  about 7 %.
-- The same register-tiled algorithm in CUDA.jl runs ~15x slower — its compiler
-  spills the 64-accumulator tile to local memory — so for Julia the vendor
-  library is the only competitive route. That kernel is in
-  `src/julia/matmul_julia_gpu_best.jl` (not in the default suite: ~4 min JIT).
+- At N=1024 in Float64 the GPU work is small, so it is launch/bandwidth-bound
+  and the kernels cluster in the high-20s to mid-40s GFLOPS: cuBLAS ≈ naive ≈
+  register-tiled.
+- Julia's fastest GPU path is cuBLAS via `mul!(C, A, B)`, matching the C
+  `cublasDgemm` result.
+- Everything uses the same size, run count and precision, so the comparison is
+  apples-to-apples.
 
 ## Environment and current caveats
 

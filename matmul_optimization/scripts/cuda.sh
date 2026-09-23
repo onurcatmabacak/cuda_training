@@ -55,7 +55,7 @@ bench_build_run "$name" "$MM_CAT" ::: \
 # 3) Shared-memory tiled kernel (C++20 host code).
 name="${MM_CAT}__matmul_cuda_cpp20_faster"
 bench_build_run "$name" "$MM_CAT" ::: \
-  "$MM_NVCC" -O3 -arch="$MM_ARCH" -std=c++20 -Xcompiler -fopenmp "${CPP_SIZE[@]}" \
+  "$MM_NVCC" -O3 -arch="$MM_ARCH" -std=c++20 -Xcompiler -fopenmp "${SIZE[@]}" \
     "$MM_SRC/cuda/matmul_cuda_cpp20_faster.cu" -o "$MM_BIN/matmul_cuda_cpp20_faster" ::: \
   "$MM_BIN/matmul_cuda_cpp20_faster"
 
@@ -80,10 +80,10 @@ if build "${MM_CAT}__matmul_cuda_best" \
     "$MM_NVCC" -O3 -arch="$MM_ARCH" "${SIZE[@]}" -lcublas \
       "$MM_SRC/cuda/matmul_cuda_best.cu" -o "$BEST_BIN"; then
   run_bench "${MM_CAT}__matmul_cuda_optimized" "$MM_CAT" "$BEST_BIN" cuda
-  run_bench "${MM_CAT}__matmul_cublas_sgemm"   "$MM_CAT" "$BEST_BIN" cublas
+  run_bench "${MM_CAT}__matmul_cublas_dgemm"   "$MM_CAT" "$BEST_BIN" cublas
 else
   manifest_add "${MM_CAT}__matmul_cuda_optimized" "$MM_CAT" "BUILD_FAIL" "1" "0" \
     "$MM_BUILD/${MM_CAT}__matmul_cuda_best.build.log" "build failed"
-  manifest_add "${MM_CAT}__matmul_cublas_sgemm" "$MM_CAT" "BUILD_FAIL" "1" "0" \
+  manifest_add "${MM_CAT}__matmul_cublas_dgemm" "$MM_CAT" "BUILD_FAIL" "1" "0" \
     "$MM_BUILD/${MM_CAT}__matmul_cuda_best.build.log" "build failed"
 fi
