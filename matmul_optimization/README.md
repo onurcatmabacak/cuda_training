@@ -61,6 +61,8 @@ _20260926_194058 — size **1024**, **10** runs, 8 threads, CUDA arch `sm_50`. G
 | cpp26 | `matmul_cpp26_cuda.cpp` | OK | 49.855 ms | 43.10 |  |
 | rust | `matmul_rust_cublas.rs` | OK | 50.219 ms | 42.80 |  |
 | cuda | `matmul_cuda_best.cu` | OK | 52.463 ms | 40.90 | max rel err 4.463e-05; OK |
+| kokkos | `matmul_kokkos.cpp` | OK | 58.882 ms | 36.47 | max rel err 1.185e-16; OK; Kokkos Cuda |
+| julia | `matmul_julia_gpu_vendor_agnostic.jl` | OK | 64.186 ms | 33.46 | max rel err 0.0; OK; backend CUDA |
 | cuda | `matmul_cuda_cpp20_faster.cu` | OK | 67.667 ms | 31.74 | max rel err 4.38591e-16; OK |
 | cuda | `matmul_cuda_faster.cu` | OK | 67.670 ms | 31.73 | max rel err 4.386e-16; OK |
 | cpu_mkl | `matmul_c11_intel_mkl.c` | OK | 69.251 ms | 31.01 | C=251.536653 |
@@ -68,9 +70,7 @@ _20260926_194058 — size **1024**, **10** runs, 8 threads, CUDA arch `sm_50`. G
 | cpu_mkl | `matmul_c11_intel_mkl.c` | OK | 70.634 ms | 30.40 | C=257.630088 |
 | cpu_mkl | `matmul_cpp20_intel_mkl.cpp` | OK | 72.403 ms | 29.66 | C=254.863 |
 | cpu_mkl | `matmul_c11_intel_mkl.c` | OK | 72.687 ms | 29.54 | C=257.502524 |
-| julia | `matmul_julia_gpu_vendor_agnostic.jl` | OK | 80.141 ms | 26.80 | max rel err 1.310268260007699e-15; OK; backend CUDA |
 | julia | `matmul_julia_cpu.jl` | OK | 82.195 ms | 26.13 | C=256.53110531394475 |
-| kokkos | `matmul_kokkos.cpp` | OK | 82.287 ms | 26.10 | max rel err 1.185e-16; OK; Kokkos Cuda |
 | julia | `matmul_julia_gpu_faster.jl` | OK | 83.973 ms | 25.57 | max rel err 0.0 |
 | cpu_c | `matmul_c11_parallel_loops.c` | OK | 353.000 ms | 6.09 |  |
 | cpu_c | `matmul_c11_openblas.c` | OK | 637.000 ms | 3.37 |  |
@@ -146,8 +146,8 @@ matmul_optimization/
 | `cuda` | naive CUDA kernel vs CPU; tiled shared-memory kernel (C and C++20); cuBLAS DGEMM (C11 and C++20); hand-written register-tiled DGEMM |
 | `cpp26` | C++26 host + CUDA: cuBLAS, cuBLASLt and CUDA-graph DGEMM |
 | `rust` | Rust + CUDA via direct FFI: cuBLAS and CUDA-graph DGEMM |
-| `kokkos` | C++ Kokkos DGEMM (naive + shared-memory tiled); builds against whatever backend Kokkos ships with |
-| `julia` | CPU BLAS; cuBLAS DGEMM (Float64); hand-written tiled CUDA kernel (Float64); vendor-agnostic tiled kernel via KernelAbstractions.jl |
+| `kokkos` | C++ Kokkos DGEMM (naive + shared-memory tiled + register-blocked); builds against whatever backend Kokkos ships with |
+| `julia` | CPU BLAS; cuBLAS DGEMM (Float64); hand-written tiled CUDA kernel (Float64); vendor-agnostic register-blocked kernel via KernelAbstractions.jl |
 | `demos` | `whoami`, `vector_add_v1`, `vector_add_v2` |
 
 ## Best DGEMM across languages (Float64, N=1024)
@@ -167,11 +167,11 @@ throttles, so repeat runs vary.
 | `cublasLtMatmul` | **C++26** | NVIDIA cuBLASLt | 43.1 |
 | CUDA graph of `cublasDgemm` | **Rust** (FFI) | CUDA graph | 42.8 |
 | register-tiled kernel (4×4/thread) | CUDA C++ | hand-written | 40.9 |
+| register-tiled kernel (16×4/thread) | **C++** (Kokkos) | hand-written (CUDA backend) | 36.5 |
+| register-tiled kernel (4×4/work-item) | **Julia** (KernelAbstractions) | hand-written, vendor-agnostic | 33.5 |
 | tiled kernel (1 output/thread) | CUDA C++ | hand-written | 31.7 |
 | Intel MKL DGEMM | C (icx) | Intel MKL | 31.0 |
-| tiled kernel (1 output/thread) | **Julia** (KernelAbstractions) | hand-written, vendor-agnostic | 26.8 |
 | CPU BLAS | Julia | OpenBLAS | 26.1 |
-| tiled kernel (32×32 shared) | **C++** (Kokkos) | hand-written (CUDA backend) | 26.1 |
 | tiled kernel (1 output/thread) | Julia (CUDA.jl) | hand-written | 25.6 |
 
 - At N=1024 in Float64 the GPU work is small, so it is launch/bandwidth-bound
@@ -180,13 +180,19 @@ throttles, so repeat runs vary.
 - **C++26 and Rust both reach cuBLAS speed** — when the work is delegated to
   the vendor library the host language does not matter (cuBLAS performs
   identically whether called from C, C++26, Rust or Julia).
-- **The vendor-agnostic Julia kernel is on par with the CUDA-specific one**
-  (26.8 vs 25.6 GFLOPS): writing the tiled kernel with `KernelAbstractions.jl`
-  costs nothing on CUDA and the same source runs on AMDGPU / oneAPI / Metal.
-- **The Kokkos DGEMM runs on the CUDA backend** (Kokkos 4.2.1, `MAXWELL50`)
-  and its 32×32 shared-memory tiled kernel reaches 26.1 GFLOPS, on par with the
-  Julia CUDA kernels.  The same source falls back to a naive kernel when Kokkos
-  is built for a CPU backend (or the OpenMP team is too small to tile).
+- **Register blocking moves the portable kernels into the same band.**  The
+  Kokkos kernel now uses a 128×128 tile with a 16×4 micro-tile (36.5 GFLOPS)
+  and the vendor-agnostic KernelAbstractions kernel a 64×64 tile with a 4×4
+  micro-tile (33.5 GFLOPS) — both far above their one-output-per-thread
+  versions (26.1 and 26.8).
+- **The vendor-agnostic Julia kernel beats the CUDA.jl one** (33.5 vs 25.6)
+  with no CUDA-specific syntax; the same source runs on AMDGPU / oneAPI / Metal.
+  In KernelAbstractions the micro-tile must be written as **16 scalar
+  accumulators**: a `@private` array of the same size spills to local memory
+  and runs ~5x slower.
+- **The Kokkos DGEMM runs on the CUDA backend** (Kokkos 4.2.1, `MAXWELL50`).
+  The same source falls back to a naive kernel when Kokkos is built for a CPU
+  backend (or the OpenMP team is too small to tile).
 - CUDA graphs and cuBLASLt give no measurable gain at this size; the kernel
   dominates the ~49 ms per call.
 - Everything uses the same size, run count and precision, so the comparison is
@@ -221,9 +227,10 @@ throttles, so repeat runs vary.
   This box uses a user-local **Kokkos 4.2.1 CUDA build** (`MAXWELL50`, sm_50)
   at `~/opt/kokkos-cuda`, plus `~/opt/cmake` and `g++-12` as the nvcc host
   compiler.  Because the source is vendor-neutral, the *same* file runs on a
-  Kokkos built for Serial, OpenMP, CUDA, HIP or SYCL; the program chooses a
-  shared-memory tile size from the backend's maximum team size (GPU → 32×32,
-  small CPU pool → naive kernel).  Note: Kokkos 4.2 defaults to
+  Kokkos built for Serial, OpenMP, CUDA, HIP or SYCL.  The default kernel is
+  register-blocked (128×128 tile, 16×4 micro-tile) when the backend can schedule
+  a 256-thread team — any GPU; it falls back to the naive kernel on a small CPU
+  OpenMP pool.  Note: Kokkos 4.2 defaults to
   `cudaMallocAsync`, which Maxwell does not support, so this build passes
   `-DKokkos_ENABLE_IMPL_CUDA_MALLOC_ASYNC=OFF`.
 * **`julia`** needs Julia with `CUDA` and `LinearAlgebra`; the vendor-agnostic

@@ -5,17 +5,23 @@
 // configured with (Serial, OpenMP, CUDA, HIP, SYCL, ...).  Only the backend's
 // device/kernel-launch machinery differs; the algorithm is the same.
 //
-// Two kernels are provided, selected by argv[1]:
+// Three kernels are provided, selected by argv[1]:
 //   naive : one work item per C(i,j), reads A and B straight from global memory
-//           (representative of the hand-written naive CUDA kernel)
-//   tiled : one team per TILE x TILE output tile, staging A and B through a
-//           shared-memory scratch pad (TeamPolicy + team_scratch).  TILE is
-//           chosen at runtime from the backend's maximum team size, so the same
-//           code runs on a GPU (TILE=32) and on a CPU OpenMP backend (smaller).
+//   tiled : one team per TILE x TILE output tile, shared-memory staging, one
+//           output per thread (representative of the hand-written CUDA kernel)
+//   reg   : register-blocked -- one team per 128 x 128 output tile, 256
+//           threads, each thread accumulating a 16 x 4 micro-tile in registers.
+//           This is the classic high-performance DGEMM shape: shared-memory
+//           traffic per FLOP is cut by TM*TN = 16x versus `tiled`.
 //
-// Usage:   matmul_kokkos [naive|tiled]        (default: tiled)
+// The default picks `reg` when the backend can schedule a 256-thread team
+// (any GPU), and falls back to `naive` for small CPU teams (a tiny tile is
+// correct but pathologically slow).
 //
-// Build against an installed Kokkos, for example:
+// Usage:   matmul_kokkos [naive|tiled|reg]        (default: auto)
+//
+// Build against an installed Kokkos via CMake (src/kokkos/CMakeLists.txt), or
+// directly:
 //   g++ -O3 -std=c++17 matmul_kokkos.cpp -o matmul_kokkos \
 //       -I"$KOKKOS_ROOT/include" -L"$KOKKOS_ROOT/lib" \
 //       -lkokkoscore -lkokkoscontainers -fopenmp
@@ -67,7 +73,7 @@ struct NaiveDGEMM {
 };
 
 // ---------------------------------------------------------------------------
-// tiled: one team per tile x tile output tile, shared-memory staging
+// tiled: one team per tile x tile output tile, one output per thread
 // ---------------------------------------------------------------------------
 struct TiledDGEMM {
   view_t A, B, C;
@@ -88,7 +94,6 @@ struct TiledDGEMM {
     const int tx = team.team_rank() % t;
     const int ty = team.team_rank() / t;
 
-    // Two t x t panels in one contiguous scratch buffer: As then Bs.
     scratch_t sh(team.team_scratch(0), 2 * t * t);
     const int As = 0;
     const int Bs = t * t;
@@ -113,6 +118,101 @@ struct TiledDGEMM {
   }
 };
 
+// ---------------------------------------------------------------------------
+// reg: register-blocked 64 x 64 x 16 tile, 16 x 16 threads, 4 x 4 per thread
+// ---------------------------------------------------------------------------
+constexpr int RBM = 128;  // block tile rows
+constexpr int RBN = 128;  // block tile cols
+constexpr int RBK = 8;   // block tile depth
+constexpr int RTM = 16;    // rows per thread
+constexpr int RTN = 4;    // cols per thread
+constexpr int RNTX = RBN / RTN;              // 16 threads along n
+constexpr int RNTY = RBM / RTM;              // 16 threads along m
+constexpr int RTEAM = RNTX * RNTY;           // threads per team
+constexpr int RLOAD_A = (RBM * RBK) / RTEAM; // A elements each thread stages
+constexpr int RLOAD_B = (RBK * RBN) / RTEAM; // B elements each thread stages
+
+struct RegTiledDGEMM {
+  view_t A, B, C;
+  int n, nblocks_m, nblocks_n;
+
+  RegTiledDGEMM(const view_t &a, const view_t &b, const view_t &c, int n_)
+      : A(a), B(b), C(c), n(n_),
+        nblocks_m((n_ + RBM - 1) / RBM), nblocks_n((n_ + RBN - 1) / RBN) {}
+
+  KOKKOS_INLINE_FUNCTION
+  void operator()(const Kokkos::TeamPolicy<exec_space>::member_type &team) const {
+    const int id = team.league_rank();
+    const int bm = id / nblocks_n;
+    const int bn = id % nblocks_n;
+    const int m0 = bm * RBM;
+    const int n0 = bn * RBN;
+    const int tid = team.team_rank();
+    const int tx = tid % RNTX;
+    const int ty = tid / RNTX;
+
+    // One scratch buffer: As[RBM*RBK] then Bs[RBK*RBN].
+    scratch_t sh(team.team_scratch(0), RBM * RBK + RBK * RBN);
+    const int As = 0;
+    const int Bs = RBM * RBK;
+
+    double acc[RTM][RTN];
+#pragma unroll
+    for (int i = 0; i < RTM; ++i)
+#pragma unroll
+      for (int j = 0; j < RTN; ++j) acc[i][j] = 0.0;
+
+    for (int k0 = 0; k0 < n; k0 += RBK) {
+      // Stage the A panel (row-major RBM x RBK).
+#pragma unroll
+      for (int l = 0; l < RLOAD_A; ++l) {
+        const int idx = tid + l * RTEAM;
+        const int m = idx / RBK;
+        const int k = idx % RBK;
+        const int gr = m0 + m;
+        const int gc = k0 + k;
+        sh(As + m * RBK + k) = (gr < n && gc < n) ? A(gr, gc) : 0.0;
+      }
+      // Stage the B panel (row-major RBK x RBN).
+#pragma unroll
+      for (int l = 0; l < RLOAD_B; ++l) {
+        const int idx = tid + l * RTEAM;
+        const int k = idx / RBN;
+        const int c = idx % RBN;
+        const int gr = k0 + k;
+        const int gc = n0 + c;
+        sh(Bs + k * RBN + c) = (gr < n && gc < n) ? B(gr, gc) : 0.0;
+      }
+      team.team_barrier();
+
+      // Each thread does RTM*RTN FMAs per staged element pair.
+#pragma unroll
+      for (int k = 0; k < RBK; ++k) {
+        double a[RTM], b[RTN];
+#pragma unroll
+        for (int i = 0; i < RTM; ++i) a[i] = sh(As + (ty * RTM + i) * RBK + k);
+#pragma unroll
+        for (int j = 0; j < RTN; ++j) b[j] = sh(Bs + k * RBN + tx * RTN + j);
+#pragma unroll
+        for (int i = 0; i < RTM; ++i)
+#pragma unroll
+          for (int j = 0; j < RTN; ++j) acc[i][j] += a[i] * b[j];
+      }
+      team.team_barrier();
+    }
+
+#pragma unroll
+    for (int i = 0; i < RTM; ++i) {
+      const int gr = m0 + ty * RTM + i;
+#pragma unroll
+      for (int j = 0; j < RTN; ++j) {
+        const int gc = n0 + tx * RTN + j;
+        if (gr < n && gc < n) C(gr, gc) = acc[i][j];
+      }
+    }
+  }
+};
+
 int main(int argc, char **argv) {
   Kokkos::initialize(argc, argv);
   {
@@ -132,16 +232,14 @@ int main(int argc, char **argv) {
     Kokkos::fence();
 
     // Largest team the backend can schedule.  On a GPU this is 1024; on an
-    // 8-thread OpenMP backend it is 8.  The tiled kernel picks its tile size
-    // from it, and the default mode avoids tiling when the team is too small
-    // to be useful (a tiny CPU tile is correct but pathologically slow).
+    // 8-thread OpenMP backend it is 8.  Small teams fall back to `naive`.
     Kokkos::TeamPolicy<exec_space> probe(1, Kokkos::AUTO);
     const int max_team = probe.team_size_max(
         TiledDGEMM(A, B, C, N, 1, 1), Kokkos::ParallelForTag());
 
     std::string mode = requested;
-    if (mode != "naive" && mode != "tiled") {
-      mode = (max_team >= 256) ? "tiled" : "naive";
+    if (mode != "naive" && mode != "tiled" && mode != "reg") {
+      mode = (max_team >= RTEAM) ? "reg" : "naive";
     }
 
     int tile = 1;
@@ -156,13 +254,23 @@ int main(int argc, char **argv) {
         Kokkos::parallel_for(
             "dgemm_naive", Kokkos::MDRangePolicy<Kokkos::Rank<2>>({0, 0}, {N, N}),
             NaiveDGEMM(A, B, C, N));
-      } else {
+      } else if (mode == "tiled") {
         const int scratch = 2 * tile * tile * static_cast<int>(sizeof(double));
         Kokkos::parallel_for(
             "dgemm_tiled",
             Kokkos::TeamPolicy<exec_space>(ntiles * ntiles, tile * tile)
                 .set_scratch_size(0, Kokkos::PerTeam(scratch)),
             TiledDGEMM(A, B, C, N, tile, ntiles));
+      } else {
+        const int nm = (N + RBM - 1) / RBM;
+        const int nn = (N + RBN - 1) / RBN;
+        const int scratch =
+            (RBM * RBK + RBK * RBN) * static_cast<int>(sizeof(double));
+        Kokkos::parallel_for(
+            "dgemm_reg",
+            Kokkos::TeamPolicy<exec_space>(nm * nn, RTEAM)
+                .set_scratch_size(0, Kokkos::PerTeam(scratch)),
+            RegTiledDGEMM(A, B, C, N));
       }
       Kokkos::fence();
     };
@@ -203,7 +311,7 @@ int main(int argc, char **argv) {
 
     std::printf("Matrix size: %dx%d (Float64)\n", N, N);
     std::printf("Kokkos backend: %s, mode: %s (tile=%d)\n", exec_space::name(),
-                mode.c_str(), tile);
+                mode.c_str(), mode == "tiled" ? tile : (mode == "reg" ? RBM : 1));
     std::printf("Average kernel time (ms): %.6f\n", avg_ms);
     std::printf("Effective GFLOPS: %.2f\n", flop / (avg_ms * 1e-3) / 1e9);
     std::printf("Max relative error vs CPU: %.3e\n", maxrel);

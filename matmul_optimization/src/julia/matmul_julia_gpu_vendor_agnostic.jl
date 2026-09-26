@@ -9,71 +9,106 @@
 #   * @localmem                             -- portable shared memory
 #   * @synchronize                          -- portable barrier
 #
-# The workgroup is TILE x TILE (32 x 32 = 1024 work-items), one team per output
-# tile, staging A and B through shared memory exactly like the hand-written CUDA
-# kernel -- but with no CUDA-specific syntax.
+# The kernel is register-blocked: one team per 64 x 64 output tile, 16 x 16 =
+# 256 work-items per team, and each work-item accumulates a 4 x 4 micro-tile in
+# 16 scalar accumulators (scalars stay in registers; a KernelAbstractions
+# `@private` array of this size spills to local memory and is ~5x slower).
+# A and B are staged through shared memory in a layout that makes the staging
+# stores conflict-free: As[BK, BM] (k fastest) and Bs[BN, BK] (n fastest).
 #
 # Run:  MATMUL_N=1024 MATMUL_RUNS=10 julia matmul_julia_gpu_vendor_agnostic.jl
 
 using KernelAbstractions
 using LinearAlgebra
 
-const TILE = 32
+const BM = 64    # block tile rows
+const BN = 64    # block tile cols
+const BK = 8     # block tile depth
+const NTX = 16   # work-items along n (each owns 4 columns)
+const NTY = 16   # work-items along m (each owns 4 rows)
+
 const N = parse(Int, get(ENV, "MATMUL_N", "1024"))
 const RUNS = parse(Int, get(ENV, "MATMUL_RUNS", "10"))
 
-@kernel function tiled_matmul_kernel!(
-        C, @Const(A), @Const(B), ::Val{BANK} = Val(0)) where {BANK}
-    # Portable block/thread indices, shared memory, private accumulator and
-    # barrier -- all vendor-neutral KernelAbstractions constructs.
-    gi, gj = @index(Group, NTuple)
-    i, j = @index(Local, NTuple)
-    T = @uniform @groupsize()[1]
+@kernel function tiled_matmul_kernel!(C, @Const(A), @Const(B))
+    tx1, ty1 = @index(Local, NTuple)
+    bm1, bn1 = @index(Group, NTuple)
+    tx = tx1 - 1
+    ty = ty1 - 1
+    bm = bm1 - 1
+    bn = bn1 - 1
+    m0 = bm * 64
+    n0 = bn * 64
+    tid = ty * 16 + tx
 
-    # +1 padding avoids shared-memory bank conflicts (BANK = 0 by default).
-    t1 = @localmem eltype(C) (T + BANK, T)
-    t2 = @localmem eltype(C) (T + BANK, T)
-    acc = @private eltype(C) 1
-    @inbounds acc[1] = zero(eltype(C))
+    As = @localmem eltype(C) (8, 64)   # [k, m]
+    Bs = @localmem eltype(C) (64, 8)   # [n, k]
 
-    @uniform n = size(C, 1)
-    @uniform NT = div(n + T - 1, T)
-    for t in 0:(NT - 1)
-        I = (gi - 1) * T + i
-        J = (gj - 1) * T + j
-        if I <= n && t * T + j <= n
-            @inbounds t1[i, j] = A[I, t * T + j]
-        else
-            @inbounds t1[i, j] = zero(eltype(C))
+    c00 = zero(eltype(C)); c01 = zero(eltype(C)); c02 = zero(eltype(C)); c03 = zero(eltype(C))
+    c10 = zero(eltype(C)); c11 = zero(eltype(C)); c12 = zero(eltype(C)); c13 = zero(eltype(C))
+    c20 = zero(eltype(C)); c21 = zero(eltype(C)); c22 = zero(eltype(C)); c23 = zero(eltype(C))
+    c30 = zero(eltype(C)); c31 = zero(eltype(C)); c32 = zero(eltype(C)); c33 = zero(eltype(C))
+
+    n = size(C, 1)
+    NK = div(n + 7, 8)
+    for kk in 0:(NK - 1)
+        # Stage A (conflict-free: consecutive work-items write consecutive k).
+        for l in 0:1
+            idx = tid + l * 256
+            mm = div(idx, 8)
+            k = idx % 8
+            gr = m0 + mm + 1
+            gc = kk * 8 + k + 1
+            As[k + 1, mm + 1] = (gr <= n && gc <= n) ? A[gr, gc] : zero(eltype(C))
         end
-        if t * T + i <= n && J <= n
-            @inbounds t2[i, j] = B[t * T + i, J]
-        else
-            @inbounds t2[i, j] = zero(eltype(C))
+        # Stage B (conflict-free: consecutive work-items write consecutive n).
+        for l in 0:1
+            idx = tid + l * 256
+            k = div(idx, 64)
+            cc = idx % 64
+            gr = kk * 8 + k + 1
+            gc = n0 + cc + 1
+            Bs[cc + 1, k + 1] = (gr <= n && gc <= n) ? B[gr, gc] : zero(eltype(C))
         end
         @synchronize
 
-        I = (gi - 1) * T + i
-        J = (gj - 1) * T + j
-        out = zero(eltype(C))
-        @simd for k in 1:T
-            @inbounds out += t1[i, k] * t2[k, j]
+        for k in 1:8
+            a0 = As[k, ty * 4 + 1]; a1 = As[k, ty * 4 + 2]
+            a2 = As[k, ty * 4 + 3]; a3 = As[k, ty * 4 + 4]
+            b0 = Bs[tx * 4 + 1, k]; b1 = Bs[tx * 4 + 2, k]
+            b2 = Bs[tx * 4 + 3, k]; b3 = Bs[tx * 4 + 4, k]
+            c00 += a0 * b0; c01 += a0 * b1; c02 += a0 * b2; c03 += a0 * b3
+            c10 += a1 * b0; c11 += a1 * b1; c12 += a1 * b2; c13 += a1 * b3
+            c20 += a2 * b0; c21 += a2 * b1; c22 += a2 * b2; c23 += a2 * b3
+            c30 += a3 * b0; c31 += a3 * b1; c32 += a3 * b2; c33 += a3 * b3
         end
-        acc[1] += out
         @synchronize
     end
 
-    I = (gi - 1) * T + i
-    J = (gj - 1) * T + j
-    if I <= n && J <= n
-        @inbounds C[I, J] = acc[1]
-    end
+    r = m0 + ty * 4
+    c = n0 + tx * 4
+    if r + 1 <= n && c + 1 <= n; C[r + 1, c + 1] = c00; end
+    if r + 1 <= n && c + 2 <= n; C[r + 1, c + 2] = c01; end
+    if r + 1 <= n && c + 3 <= n; C[r + 1, c + 3] = c02; end
+    if r + 1 <= n && c + 4 <= n; C[r + 1, c + 4] = c03; end
+    if r + 2 <= n && c + 1 <= n; C[r + 2, c + 1] = c10; end
+    if r + 2 <= n && c + 2 <= n; C[r + 2, c + 2] = c11; end
+    if r + 2 <= n && c + 3 <= n; C[r + 2, c + 3] = c12; end
+    if r + 2 <= n && c + 4 <= n; C[r + 2, c + 4] = c13; end
+    if r + 3 <= n && c + 1 <= n; C[r + 3, c + 1] = c20; end
+    if r + 3 <= n && c + 2 <= n; C[r + 3, c + 2] = c21; end
+    if r + 3 <= n && c + 3 <= n; C[r + 3, c + 3] = c22; end
+    if r + 3 <= n && c + 4 <= n; C[r + 3, c + 4] = c23; end
+    if r + 4 <= n && c + 1 <= n; C[r + 4, c + 1] = c30; end
+    if r + 4 <= n && c + 2 <= n; C[r + 4, c + 2] = c31; end
+    if r + 4 <= n && c + 3 <= n; C[r + 4, c + 3] = c32; end
+    if r + 4 <= n && c + 4 <= n; C[r + 4, c + 4] = c33; end
 end
 
 # Pick the first installed GPU backend.  The imports happen at top level (as
 # each `const` initialiser is evaluated) so the backend methods are visible in
-# `main` without world-age surprises; only the vendor-neutral kernel body below
-# is shared.  Pairs are (package, backend constructor).
+# `main` without world-age surprises; only the vendor-neutral kernel body above
+# is shared.
 function _try_import(pkg::Symbol)
     try
         Core.eval(Main, :(import $pkg))
@@ -119,8 +154,10 @@ function main()
     copyto!(B, rand(Float64, N, N))
     fill!(C, 0.0)
 
-    kernel! = tiled_matmul_kernel!(backend, (TILE, TILE))
-    launch = () -> kernel!(C, A, B, ndrange = size(C))
+    kernel! = tiled_matmul_kernel!(backend, (NTX, NTY))
+    ngm = cld(N, BM)
+    ngn = cld(N, BN)
+    launch = () -> kernel!(C, A, B, ndrange = (ngm * NTX, ngn * NTY))
 
     launch()
     KernelAbstractions.synchronize(backend)

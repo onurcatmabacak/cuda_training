@@ -41,6 +41,8 @@ _20260926_194058 — size **1024**, **10** runs, 8 threads, CUDA arch `sm_50`. G
 | cpp26 | `matmul_cpp26_cuda.cpp` | OK | 49.855 ms | 43.10 |  |
 | rust | `matmul_rust_cublas.rs` | OK | 50.219 ms | 42.80 |  |
 | cuda | `matmul_cuda_best.cu` | OK | 52.463 ms | 40.90 | max rel err 4.463e-05; OK |
+| kokkos | `matmul_kokkos.cpp` | OK | 58.882 ms | 36.47 | max rel err 1.185e-16; OK; Kokkos Cuda |
+| julia | `matmul_julia_gpu_vendor_agnostic.jl` | OK | 64.186 ms | 33.46 | max rel err 0.0; OK; backend CUDA |
 | cuda | `matmul_cuda_cpp20_faster.cu` | OK | 67.667 ms | 31.74 | max rel err 4.38591e-16; OK |
 | cuda | `matmul_cuda_faster.cu` | OK | 67.670 ms | 31.73 | max rel err 4.386e-16; OK |
 | cpu_mkl | `matmul_c11_intel_mkl.c` | OK | 69.251 ms | 31.01 | C=251.536653 |
@@ -48,9 +50,7 @@ _20260926_194058 — size **1024**, **10** runs, 8 threads, CUDA arch `sm_50`. G
 | cpu_mkl | `matmul_c11_intel_mkl.c` | OK | 70.634 ms | 30.40 | C=257.630088 |
 | cpu_mkl | `matmul_cpp20_intel_mkl.cpp` | OK | 72.403 ms | 29.66 | C=254.863 |
 | cpu_mkl | `matmul_c11_intel_mkl.c` | OK | 72.687 ms | 29.54 | C=257.502524 |
-| julia | `matmul_julia_gpu_vendor_agnostic.jl` | OK | 80.141 ms | 26.80 | max rel err 1.310268260007699e-15; OK; backend CUDA |
 | julia | `matmul_julia_cpu.jl` | OK | 82.195 ms | 26.13 | C=256.53110531394475 |
-| kokkos | `matmul_kokkos.cpp` | OK | 82.287 ms | 26.10 | max rel err 1.185e-16; OK; Kokkos Cuda |
 | julia | `matmul_julia_gpu_faster.jl` | OK | 83.973 ms | 25.57 | max rel err 0.0 |
 | cpu_c | `matmul_c11_parallel_loops.c` | OK | 353.000 ms | 6.09 |  |
 | cpu_c | `matmul_c11_openblas.c` | OK | 637.000 ms | 3.37 |  |
@@ -77,6 +77,6 @@ The suite runs every benchmark with the same size, run count and precision
 cross-language DGEMM comparison: cuBLAS reaches ~44 GFLOPS whether called from C,
 C++26, Rust or Julia, while a hand-written register-tiled CUDA kernel reaches
 ~41.  The suite also includes a C++ Kokkos DGEMM (the same source runs on the
-CUDA backend here — 26.1 GFLOPS on this GPU — or on OpenMP/Serial/HIP/SYCL
+CUDA backend here — 36.5 GFLOPS on this GPU — or on OpenMP/Serial/HIP/SYCL
 builds) and a Julia kernel written with KernelAbstractions.jl that runs
-unchanged on any GPU vendor's backend.
+unchanged on any GPU vendor's backend (register-blocked, 33.5 GFLOPS).
