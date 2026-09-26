@@ -69,6 +69,13 @@ def correctness_notes(text: str) -> list[str]:
     m = re.search(r"C\[[0-9,\s]+\]\s*=\s*([\d.eE+-]+)", text)
     if m:
         notes.append(f"C={m.group(1)}")
+    # Surface which accelerator/backend the vendor-neutral benchmarks selected.
+    m = re.search(r"Vendor-agnostic backend:\s*(\w+)", text)
+    if m:
+        notes.append(f"backend {m.group(1)}")
+    m = re.search(r"Kokkos backend:\s*(\w+)", text)
+    if m:
+        notes.append(f"Kokkos {m.group(1)}")
     return notes
 
 

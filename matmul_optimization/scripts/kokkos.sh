@@ -33,11 +33,8 @@ if [[ -n "${KOKKOS_CXXFLAGS:-}" || -n "${KOKKOS_LIBS:-}" ]]; then
   K_FOUND=1
 elif [[ -n "${KOKKOS_ROOT:-}" && -d "$KOKKOS_ROOT" ]]; then
   K_INC=(-I"$KOKKOS_ROOT/include")
-  if [[ -d "$KOKKOS_ROOT/lib64" ]]; then
-    K_LIB=(-L"$KOKKOS_ROOT/lib64")
-  else
-    K_LIB=(-L"$KOKKOS_ROOT/lib")
-  fi
+  if [[ -d "$KOKKOS_ROOT/lib64" ]]; then k_libdir="$KOKKOS_ROOT/lib64"; else k_libdir="$KOKKOS_ROOT/lib"; fi
+  K_LIB=(-L"$k_libdir" -Wl,-rpath,"$k_libdir")
   K_EXTRA=(-fopenmp)
   K_FOUND=1
 elif have pkg-config && pkg-config --exists kokkoscore 2>/dev/null; then
@@ -52,7 +49,8 @@ else
   for prefix in /usr /usr/local /opt/kokkos "$HOME/opt/kokkos"; do
     if [[ -f "$prefix/include/KokkosCore_config.h" ]]; then
       K_INC=(-I"$prefix/include")
-      if [[ -d "$prefix/lib64" ]]; then K_LIB=(-L"$prefix/lib64"); else K_LIB=(-L"$prefix/lib"); fi
+      if [[ -d "$prefix/lib64" ]]; then k_libdir="$prefix/lib64"; else k_libdir="$prefix/lib"; fi
+      K_LIB=(-L"$k_libdir" -Wl,-rpath,"$k_libdir")
       K_EXTRA=(-fopenmp)
       K_FOUND=1
       break
