@@ -131,6 +131,59 @@ def fmt_gflops(g):
 STATUS_ORDER = {"OK": 0, "BUILT": 1, "SKIPPED": 2, "BUILD_FAIL": 3, "TIMEOUT": 4, "FAIL": 5}
 CATEGORY_ORDER = ["cpu_c", "cpu_mkl", "cuda", "julia", "demos"]
 
+# Exact source file (with extension) each benchmark is built from.  The report's
+# "Benchmark" column shows this file name instead of the internal manifest name.
+# A `source` column in the manifest (if present) takes precedence, so new
+# benchmarks can declare their own source without touching this table.
+SOURCE_MAP = {
+    # cpu_c
+    "cpu_c__matmul_c99_O1": "matmul_c99.c",
+    "cpu_c__matmul_c99_O2": "matmul_c99.c",
+    "cpu_c__matmul_c99_O3": "matmul_c99.c",
+    "cpu_c__matmul_c11_O1": "matmul_c11.c",
+    "cpu_c__matmul_c11_O2": "matmul_c11.c",
+    "cpu_c__matmul_c11_O3": "matmul_c11.c",
+    "cpu_c__matmul_c23_O1": "matmul_c23.c",
+    "cpu_c__matmul_c23_O2": "matmul_c23.c",
+    "cpu_c__matmul_c23_O3": "matmul_c23.c",
+    "cpu_c__matmul_c11_index_order_O3": "matmul_c11_index_order.c",
+    "cpu_c__matmul_c11_parallel_loops_O3": "matmul_c11_parallel_loops.c",
+    "cpu_c__matmul_c11_openblas_O3": "matmul_c11_openblas.c",
+    # cpu_mkl
+    "cpu_mkl__matmul_c11_intel_mkl_flags1": "matmul_c11_intel_mkl.c",
+    "cpu_mkl__matmul_c11_intel_mkl_flags2": "matmul_c11_intel_mkl.c",
+    "cpu_mkl__matmul_c11_intel_mkl_flags3": "matmul_c11_intel_mkl.c",
+    "cpu_mkl__matmul_c11_intel_mkl_flags4": "matmul_c11_intel_mkl.c",
+    "cpu_mkl__matmul_cpp20_intel_mkl": "matmul_cpp20_intel_mkl.cpp",
+    # cuda
+    "cuda__matmul_cuda": "matmul_cuda.cu",
+    "cuda__matmul_cuda_faster": "matmul_cuda_faster.cu",
+    "cuda__matmul_cuda_cpp20_faster": "matmul_cuda_cpp20_faster.cu",
+    "cuda__matmul_cublas_c11": "matmul_cublas_c11.cu",
+    "cuda__matmul_cublas_cpp20": "matmul_cublas_cpp20.cu",
+    "cuda__matmul_cuda_optimized": "matmul_cuda_best.cu",
+    "cuda__matmul_cublas_dgemm": "matmul_cuda_best.cu",
+    # cpp26
+    "cpp26__matmul_cpp26_cublas": "matmul_cpp26_cuda.cpp",
+    "cpp26__matmul_cpp26_cublaslt": "matmul_cpp26_cuda.cpp",
+    "cpp26__matmul_cpp26_graph": "matmul_cpp26_cuda.cpp",
+    # rust
+    "rust__matmul_rust_cublas": "matmul_rust_cublas.rs",
+    "rust__matmul_rust_graph": "matmul_rust_cublas.rs",
+    # kokkos
+    "kokkos__matmul_kokkos": "matmul_kokkos.cpp",
+    # julia
+    "julia__matmul_julia_cpu": "matmul_julia_cpu.jl",
+    "julia__matmul_cublas_julia": "matmul_cublas_julia.jl",
+    "julia__matmul_julia_gpu": "matmul_julia_gpu.jl",
+    "julia__matmul_julia_gpu_faster": "matmul_julia_gpu_faster.jl",
+    "julia__matmul_julia_gpu_vendor_agnostic": "matmul_julia_gpu_vendor_agnostic.jl",
+    # demos
+    "demos__whoami": "whoami_cuda.cu",
+    "demos__vector_add_v1": "vector_add_v1.cu",
+    "demos__vector_add_v2": "vector_add_v2.cu",
+}
+
 
 def load_manifest(path: Path) -> list[dict]:
     if not path.exists():
@@ -154,6 +207,7 @@ def main() -> int:
     rows = []
     for entry in manifest:
         name = entry.get("name", "")
+        source = entry.get("source") or SOURCE_MAP.get(name, "")
         category = entry.get("category", "")
         status = entry.get("status", "")
         outfile = entry.get("output") or ""
@@ -168,6 +222,7 @@ def main() -> int:
         if not parsed:
             rows.append({
                 "category": category, "name": name, "status": status,
+                "source": source,
                 "seconds": None, "gflops": None, "notes": note,
                 "wall_s": wall, "rc": rc,
             })
@@ -177,6 +232,7 @@ def main() -> int:
             rows.append({
                 "category": category,
                 "name": name + p["suffix"],
+                "source": source,
                 "status": status,
                 "seconds": p["seconds"],
                 "gflops": p["gflops"],
@@ -189,7 +245,7 @@ def main() -> int:
     csv_path = results_dir / "summary.csv"
     with csv_path.open("w", newline="") as fh:
         writer = csv.DictWriter(fh, fieldnames=[
-            "category", "name", "status", "seconds", "avg_time",
+            "category", "name", "source", "status", "seconds", "avg_time",
             "gflops", "notes", "wall_s", "rc",
         ])
         writer.writeheader()
@@ -197,6 +253,7 @@ def main() -> int:
             writer.writerow({
                 "category": r["category"],
                 "name": r["name"],
+                "source": r["source"],
                 "status": r["status"],
                 "seconds": f"{r['seconds']:.9f}" if r["seconds"] is not None else "",
                 "avg_time": fmt_time(r["seconds"]),
@@ -237,7 +294,8 @@ def main() -> int:
                  "|---|---|---|---|---|---|"]
     for r in sorted(rows, key=sort_key):
         all_table.append("| {} | `{}` | {} | {} | {} | {} |".format(
-            r["category"], r["name"], r["status"], fmt_time(r["seconds"]),
+            r["category"], r["source"] or r["name"], r["status"],
+            fmt_time(r["seconds"]),
             fmt_gflops(r["gflops"]), r["notes"].replace("|", "\\|"),
         ))
 
@@ -260,7 +318,7 @@ def main() -> int:
         lines.append("|---|---|---|---|---|")
         for r in cat_rows:
             lines.append("| `{}` | {} | {} | {} | {} |".format(
-                r["name"], r["status"], fmt_time(r["seconds"]),
+                r["source"] or r["name"], r["status"], fmt_time(r["seconds"]),
                 fmt_gflops(r["gflops"]), r["notes"].replace("|", "\\|"),
             ))
         lines.append("")

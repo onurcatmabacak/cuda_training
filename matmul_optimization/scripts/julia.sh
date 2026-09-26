@@ -48,6 +48,18 @@ if [[ "$MM_JL_GPU_OK" == "1" ]]; then
   # 4) Hand-written tiled CUDA kernel (Float32).
   name="${MM_CAT}__matmul_julia_gpu_faster"
   run_bench "$name" "$MM_CAT" "${JULIA_ENV[@]}" "${JL[@]}" "$MM_SRC/julia/matmul_julia_gpu_faster.jl"
+
+  # 5) Vendor-agnostic GPU kernel (KernelAbstractions.jl): the same @kernel
+  #    runs on any GPU backend (CUDA / AMDGPU / oneAPI / Metal).
+  if timeout "$preflight_timeout" julia --startup-file=no -e 'using KernelAbstractions' \
+      >/dev/null 2>&1; then
+    name="${MM_CAT}__matmul_julia_gpu_vendor_agnostic"
+    run_bench "$name" "$MM_CAT" "${JULIA_ENV[@]}" "${JL[@]}" \
+      "$MM_SRC/julia/matmul_julia_gpu_vendor_agnostic.jl"
+  else
+    record_skip "julia__matmul_julia_gpu_vendor_agnostic" "$MM_CAT" \
+      "KernelAbstractions.jl not installed (julia -e 'import Pkg; Pkg.add(\"KernelAbstractions\")')"
+  fi
 else
   if have_gpu; then
     reason="CUDA runtime does not support this GPU (see build/julia_gpu_preflight.log)"
@@ -57,4 +69,5 @@ else
   record_skip "julia__matmul_cublas_julia"     "$MM_CAT" "$reason"
   record_skip "julia__matmul_julia_gpu"        "$MM_CAT" "$reason"
   record_skip "julia__matmul_julia_gpu_faster" "$MM_CAT" "$reason"
+  record_skip "julia__matmul_julia_gpu_vendor_agnostic" "$MM_CAT" "$reason"
 fi
