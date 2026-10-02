@@ -14,7 +14,7 @@ MKL_INC=(-I"$MKLROOT/include")
 MKL_LIB=(-L"$MKLROOT/lib/intel64"
          -Wl,--start-group -lmkl_intel_lp64 -lmkl_core -lmkl_intel_thread -Wl,--end-group
          -liomp5 -lpthread -lm -ldl)
-MKL_ENV=(env MKL_NUM_THREADS="$MATMUL_THREADS" OMP_NUM_THREADS="$MATMUL_THREADS" MKL_DYNAMIC=FALSE)
+MKL_ENV=(env MKL_NUM_THREADS="$MATMUL_BLAS_THREADS" OMP_NUM_THREADS="$MATMUL_BLAS_THREADS" MKL_DYNAMIC=FALSE)
 
 SIZE=()
 [[ -n "$MATMUL_N" ]] && SIZE+=(-DMATMUL_N="$MATMUL_N")
@@ -46,4 +46,4 @@ bench_build_run "$name" "$MM_CAT" ::: \
     "${SIZE[@]}" \
     "$MM_SRC/cpu_mkl/matmul_cpp20_intel_mkl.cpp" "${MKL_INC[@]}" "${MKL_LIB[@]}" \
     -o "$MM_BIN/matmul_cpp20_intel_mkl" ::: \
-  "${MKL_ENV[@]}" "$MM_BIN/matmul_cpp20_intel_mkl" "$MATMUL_THREADS"
+  "${MKL_ENV[@]}" "$MM_BIN/matmul_cpp20_intel_mkl" "$MATMUL_BLAS_THREADS"

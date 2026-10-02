@@ -36,10 +36,25 @@ def build_block(results_dir: Path) -> str:
         lines = lines[1:]
     body = "\n".join(lines).strip()
 
+    threads_txt = f"{cfg.get('threads', '?')} threads"
+    if cfg.get("blas_threads"):
+        threads_txt += f" (BLAS/DGEMM {cfg['blas_threads']})"
+    cooldown_txt = ""
+    if cfg.get("cooldown_s") and cfg["cooldown_s"] != "0":
+        cooldown_txt = f", {cfg['cooldown_s']} s cooldown between runs"
+    peak_parts = []
+    if cfg.get("cpu_peak_gflops"):
+        peak_parts.append(f"CPU {cfg['cpu_peak_gflops']}")
+    if cfg.get("gpu_peak_gflops"):
+        peak_parts.append(f"GPU {cfg['gpu_peak_gflops']}")
+    peak_txt = ""
+    if peak_parts:
+        peak_txt = (" Theoretical FP64 peak: " + ", ".join(peak_parts)
+                    + " GFLOPS; `% peak` is measured/theoretical.")
     header = (
         f"_{cfg.get('date', '?')} — size **{cfg.get('matrix_size', 'default')}**, "
-        f"**{cfg.get('runs', 'default')}** runs, {cfg.get('threads', '?')} threads, "
-        f"CUDA arch `{cfg.get('cuda_arch', '?')}`. GFLOPS is as reported, or computed "
+        f"**{cfg.get('runs', 'default')}** runs, {threads_txt}{cooldown_txt}, "
+        f"CUDA arch `{cfg.get('cuda_arch', '?')}`.{peak_txt} GFLOPS is as reported, or computed "
         f"as `2·N³/t` when only a time is printed._"
     )
     return f"{START}\n\n{header}\n\n{body}\n\n{END}"

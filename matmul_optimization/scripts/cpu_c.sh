@@ -53,4 +53,4 @@ name="${MM_CAT}__matmul_c11_openblas_O3"
 bench_build_run "$name" "$MM_CAT" ::: \
   "$MM_CC" "${BLAS_FLAGS[@]}" \
     -o "$MM_BIN/matmul_c11_openblas" "$MM_SRC/cpu_c/matmul_c11_openblas.c" -lopenblas -lm ::: \
-  env OPENBLAS_NUM_THREADS="$MATMUL_THREADS" "$MM_BIN/matmul_c11_openblas"
+  env OPENBLAS_NUM_THREADS="$MATMUL_BLAS_THREADS" "$MM_BIN/matmul_c11_openblas"

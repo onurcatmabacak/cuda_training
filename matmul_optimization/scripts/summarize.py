@@ -9,6 +9,7 @@ the matrix dimension when the program does not print it itself.
 from __future__ import annotations
 
 import csv
+import os
 import re
 import sys
 from pathlib import Path
@@ -135,6 +136,34 @@ def fmt_gflops(g):
     return f"{g:.2f}"
 
 
+def _num(value):
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def device_of(category, name):
+    """Which engine a benchmark ran on: 'cpu', 'gpu' or None if unknown."""
+    if category in ("cpu_c", "cpu_mkl"):
+        return "cpu"
+    if category == "julia":
+        return "cpu" if "matmul_julia_cpu" in name else "gpu"
+    if category in ("cuda", "cpp26", "rust", "kokkos"):
+        return "cpu" if name.endswith("[cpu]") else "gpu"
+    return None
+
+
+def fmt_peak(gflops, device, cpu_peak, gpu_peak):
+    """Percent of the theoretical FP64 peak, or '' when unknown."""
+    if gflops is None:
+        return ""
+    peak = cpu_peak if device == "cpu" else gpu_peak if device == "gpu" else None
+    if not peak:
+        return ""
+    return f"{100.0 * gflops / peak:.0f}%"
+
+
 STATUS_ORDER = {"OK": 0, "BUILT": 1, "SKIPPED": 2, "BUILD_FAIL": 3, "TIMEOUT": 4, "FAIL": 5}
 CATEGORY_ORDER = ["cpu_c", "cpu_mkl", "cuda", "julia", "demos"]
 
@@ -211,6 +240,10 @@ def main() -> int:
                 k, v = line.split("=", 1)
                 config[k.strip()] = v.strip()
 
+    cpu_peak = _num(config.get("cpu_peak_gflops")) or _num(os.environ.get("MATMUL_CPU_PEAK_GFLOPS"))
+    gpu_peak = _num(config.get("gpu_peak_gflops")) or _num(os.environ.get("MATMUL_GPU_PEAK_GFLOPS"))
+    show_peak = cpu_peak is not None or gpu_peak is not None
+
     rows = []
     for entry in manifest:
         name = entry.get("name", "")
@@ -253,7 +286,7 @@ def main() -> int:
     with csv_path.open("w", newline="") as fh:
         writer = csv.DictWriter(fh, fieldnames=[
             "category", "name", "source", "status", "seconds", "avg_time",
-            "gflops", "notes", "wall_s", "rc",
+            "gflops", "pct_peak", "notes", "wall_s", "rc",
         ])
         writer.writeheader()
         for r in rows:
@@ -265,6 +298,8 @@ def main() -> int:
                 "seconds": f"{r['seconds']:.9f}" if r["seconds"] is not None else "",
                 "avg_time": fmt_time(r["seconds"]),
                 "gflops": fmt_gflops(r["gflops"]),
+                "pct_peak": fmt_peak(r["gflops"], device_of(r["category"], r["name"]),
+                                      cpu_peak, gpu_peak),
                 "notes": r["notes"],
                 "wall_s": r["wall_s"],
                 "rc": r["rc"],
@@ -280,7 +315,8 @@ def main() -> int:
     if config:
         lines.append("**Run configuration**")
         lines.append("")
-        for k in ("date", "matrix_size", "runs", "threads", "cuda_arch", "timeout_s", "only", "skip"):
+        for k in ("date", "matrix_size", "runs", "threads", "blas_threads", "cooldown_s",
+                  "cuda_arch", "timeout_s", "cpu_peak_gflops", "gpu_peak_gflops", "only", "skip"):
             if k in config:
                 lines.append(f"- `{k}` = `{config[k]}`")
         lines.append("")
@@ -290,6 +326,10 @@ def main() -> int:
                  "GFLOPS is as reported by the program, or computed as `2·N³/t` when the "
                  "program only prints a time.")
     lines.append("")
+    if show_peak:
+        lines.append(f"Theoretical FP64 peaks: CPU {cpu_peak:g} GFLOPS, "
+                     f"GPU {gpu_peak:g} GFLOPS (`% peak` is measured/theoretical).")
+        lines.append("")
 
     # ---- one consolidated table containing every benchmark ----------------
     # Sorted by GFLOPS, highest first; rows without a GFLOPS value go last.
@@ -297,14 +337,20 @@ def main() -> int:
         g = r["gflops"]
         return (g is None, -(g or 0.0), r["name"])
 
-    all_table = ["| Category | Benchmark | Status | Avg time | GFLOPS | Notes |",
-                 "|---|---|---|---|---|---|"]
+    if show_peak:
+        all_table = ["| Category | Benchmark | Status | Avg time | GFLOPS | % peak | Notes |",
+                     "|---|---|---|---|---|---|---|"]
+    else:
+        all_table = ["| Category | Benchmark | Status | Avg time | GFLOPS | Notes |",
+                     "|---|---|---|---|---|---|"]
     for r in sorted(rows, key=sort_key):
-        all_table.append("| {} | `{}` | {} | {} | {} | {} |".format(
-            r["category"], r["source"] or r["name"], r["status"],
-            fmt_time(r["seconds"]),
-            fmt_gflops(r["gflops"]), r["notes"].replace("|", "\\|"),
-        ))
+        cells = [r["category"], f"`{r['source'] or r['name']}`", r["status"],
+                 fmt_time(r["seconds"]), fmt_gflops(r["gflops"])]
+        if show_peak:
+            cells.append(fmt_peak(r["gflops"], device_of(r["category"], r["name"]),
+                                   cpu_peak, gpu_peak))
+        cells.append(r["notes"].replace("|", "\\|"))
+        all_table.append("| " + " | ".join(cells) + " |")
 
     lines.append("## All results")
     lines.append("")
@@ -321,13 +367,20 @@ def main() -> int:
         cat_rows.sort(key=lambda r: (r["gflops"] is None, -(r["gflops"] or 0.0), r["name"]))
         lines.append(f"### {cat}")
         lines.append("")
-        lines.append("| Benchmark | Status | Avg time | GFLOPS | Notes |")
-        lines.append("|---|---|---|---|---|")
+        if show_peak:
+            lines.append("| Benchmark | Status | Avg time | GFLOPS | % peak | Notes |")
+            lines.append("|---|---|---|---|---|---|")
+        else:
+            lines.append("| Benchmark | Status | Avg time | GFLOPS | Notes |")
+            lines.append("|---|---|---|---|---|")
         for r in cat_rows:
-            lines.append("| `{}` | {} | {} | {} | {} |".format(
-                r["source"] or r["name"], r["status"], fmt_time(r["seconds"]),
-                fmt_gflops(r["gflops"]), r["notes"].replace("|", "\\|"),
-            ))
+            cells = [f"`{r['source'] or r['name']}`", r["status"], fmt_time(r["seconds"]),
+                     fmt_gflops(r["gflops"])]
+            if show_peak:
+                cells.append(fmt_peak(r["gflops"], device_of(r["category"], r["name"]),
+                                       cpu_peak, gpu_peak))
+            cells.append(r["notes"].replace("|", "\\|"))
+            lines.append("| " + " | ".join(cells) + " |")
         lines.append("")
 
     lines.append("---")

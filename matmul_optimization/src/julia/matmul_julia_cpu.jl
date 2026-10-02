@@ -1,7 +1,7 @@
 # matmul_julia_cpu.jl -- CPU BLAS DGEMM (Float64)
 using LinearAlgebra
 
-BLAS.set_num_threads(parse(Int, get(ENV, "MATMUL_THREADS", "8")))
+BLAS.set_num_threads(parse(Int, get(ENV, "MATMUL_BLAS_THREADS", get(ENV, "MATMUL_THREADS", "8"))))
 
 const N = parse(Int, get(ENV, "MATMUL_N", "1024"))
 const RUNS = parse(Int, get(ENV, "MATMUL_RUNS", "10"))

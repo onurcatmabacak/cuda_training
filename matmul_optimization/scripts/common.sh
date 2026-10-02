@@ -38,6 +38,20 @@ export MATMUL_TIMEOUT="${MATMUL_TIMEOUT:-0}"
 export MATMUL_CUDA_ARCH="${MATMUL_CUDA_ARCH:-sm_50}"
 export MATMUL_BUILD_ONLY="${MATMUL_BUILD_ONLY:-0}"
 export MATMUL_RESULTS_DIR="$MM_RESULTS"
+export MATMUL_COOLDOWN="${MATMUL_COOLDOWN:-0}"
+
+# FP64 DGEMM is compute-bound, so HyperThreads add no FP64 throughput and can
+# even hurt (they contend for the shared FP units and cache).  BLAS-backed
+# benchmarks therefore default to the number of *physical* cores, not nproc.
+mm_physical_cores() {
+  local n
+  if command -v lscpu >/dev/null 2>&1; then
+    n=$(lscpu -p=Core,Socket 2>/dev/null | grep -v '^#' | sort -u | wc -l)
+    [[ "$n" -gt 0 ]] && { printf '%s' "$n"; return; }
+  fi
+  nproc 2>/dev/null || printf '4'
+}
+export MATMUL_BLAS_THREADS="${MATMUL_BLAS_THREADS:-$(mm_physical_cores)}"
 
 # --- pretty output -----------------------------------------------------------
 if [[ -t 1 ]]; then
@@ -118,6 +132,11 @@ run_bench() {
   if [[ "$MATMUL_BUILD_ONLY" == "1" ]]; then
     manifest_add "$name" "$category" "BUILT" "-" "0" "" "build-only"
     return 0
+  fi
+
+  if [[ "${MATMUL_COOLDOWN:-0}" != "0" ]]; then
+    info "  cooling down ${MATMUL_COOLDOWN}s before run (avoid thermal throttling)"
+    sleep "$MATMUL_COOLDOWN"
   fi
 
   local rc start end wall status
