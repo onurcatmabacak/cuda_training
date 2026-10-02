@@ -338,18 +338,17 @@ def main() -> int:
         return (g is None, -(g or 0.0), r["name"])
 
     if show_peak:
-        all_table = ["| Category | Benchmark | Status | Avg time | GFLOPS | % peak | Notes |",
-                     "|---|---|---|---|---|---|---|"]
-    else:
-        all_table = ["| Category | Benchmark | Status | Avg time | GFLOPS | Notes |",
+        all_table = ["| Category | Benchmark | Status | Avg time | GFLOPS | % peak |",
                      "|---|---|---|---|---|---|"]
+    else:
+        all_table = ["| Category | Benchmark | Status | Avg time | GFLOPS |",
+                     "|---|---|---|---|---|"]
     for r in sorted(rows, key=sort_key):
         cells = [r["category"], f"`{r['source'] or r['name']}`", r["status"],
                  fmt_time(r["seconds"]), fmt_gflops(r["gflops"])]
         if show_peak:
             cells.append(fmt_peak(r["gflops"], device_of(r["category"], r["name"]),
                                    cpu_peak, gpu_peak))
-        cells.append(r["notes"].replace("|", "\\|"))
         all_table.append("| " + " | ".join(cells) + " |")
 
     lines.append("## All results")
@@ -368,18 +367,17 @@ def main() -> int:
         lines.append(f"### {cat}")
         lines.append("")
         if show_peak:
-            lines.append("| Benchmark | Status | Avg time | GFLOPS | % peak | Notes |")
+            lines.append("| Benchmark | Status | Avg time | GFLOPS | % peak |")
             lines.append("|---|---|---|---|---|---|")
         else:
-            lines.append("| Benchmark | Status | Avg time | GFLOPS | Notes |")
-            lines.append("|---|---|---|---|---|")
+            lines.append("| Benchmark | Status | Avg time | GFLOPS |")
+            lines.append("|---|---|---|---|")
         for r in cat_rows:
             cells = [f"`{r['source'] or r['name']}`", r["status"], fmt_time(r["seconds"]),
                      fmt_gflops(r["gflops"])]
             if show_peak:
                 cells.append(fmt_peak(r["gflops"], device_of(r["category"], r["name"]),
                                        cpu_peak, gpu_peak))
-            cells.append(r["notes"].replace("|", "\\|"))
             lines.append("| " + " | ".join(cells) + " |")
         lines.append("")
 
