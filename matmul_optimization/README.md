@@ -50,7 +50,7 @@ still vary with the machine's thermal state._
 _20261002_174119 — size **1024**, **10** runs, 8 threads (BLAS/DGEMM 4), 20 s cooldown between runs, CUDA arch `sm_50`. Theoretical FP64 peak: CPU 198.4, GPU 48.1 GFLOPS; `% peak` is measured/theoretical. GFLOPS is as reported, or computed as `2·N³/t` when only a time is printed._
 
 | Category | Benchmark | Status | Avg time | GFLOPS | % peak |
-|---|---|---|---|---|---|---|
+|---|---|---|---|---|---|
 | cpu_mkl | `matmul_cpp20_intel_mkl.cpp` | OK | 14.462 ms | 148.5 | 75% |
 | cpu_mkl | `matmul_c11_intel_mkl.c` | OK | 14.480 ms | 148.3 | 75% |
 | cpu_mkl | `matmul_c11_intel_mkl.c` | OK | 14.609 ms | 147.0 | 74% |
@@ -90,6 +90,7 @@ _20261002_174119 — size **1024**, **10** runs, 8 threads (BLAS/DGEMM 4), 20 s 
 | demos | `vector_add_v1.cu` | OK |  |  |  |
 | demos | `vector_add_v2.cu` | OK |  |  |  |
 | demos | `whoami_cuda.cu` | OK |  |  |  |
+
 <!-- RESULTS:END -->
 
 ## Sizes, runs and precision
