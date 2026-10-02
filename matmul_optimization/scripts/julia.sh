@@ -15,7 +15,7 @@ JULIA_ENV=(env MATMUL_THREADS="$MATMUL_THREADS")
 [[ -n "$MATMUL_N" ]]    && JULIA_ENV+=(MATMUL_N="$MATMUL_N")
 [[ -n "$MATMUL_RUNS" ]] && JULIA_ENV+=(MATMUL_RUNS="$MATMUL_RUNS")
 
-# 1) CPU BLAS (Float32, multi-threaded).
+# 1) CPU BLAS (Float64, multi-threaded).
 name="${MM_CAT}__matmul_julia_cpu"
 run_bench "$name" "$MM_CAT" "${JULIA_ENV[@]}" "${JL[@]}" "$MM_SRC/julia/matmul_julia_cpu.jl"
 
@@ -41,11 +41,11 @@ if [[ "$MM_JL_GPU_OK" == "1" ]]; then
   name="${MM_CAT}__matmul_cublas_julia"
   run_bench "$name" "$MM_CAT" "${JULIA_ENV[@]}" "${JL[@]}" "$MM_SRC/julia/matmul_cublas_julia.jl"
 
-  # 3) cuBLAS SGEMM (Float32) via Julia's `A * B`.
+  # 3) cuBLAS DGEMM (Float64) via Julia's `A * B`.
   name="${MM_CAT}__matmul_julia_gpu"
   run_bench "$name" "$MM_CAT" "${JULIA_ENV[@]}" "${JL[@]}" "$MM_SRC/julia/matmul_julia_gpu.jl"
 
-  # 4) Hand-written tiled CUDA kernel (Float32).
+  # 4) Hand-written tiled CUDA kernel (Float64).
   name="${MM_CAT}__matmul_julia_gpu_faster"
   run_bench "$name" "$MM_CAT" "${JULIA_ENV[@]}" "${JL[@]}" "$MM_SRC/julia/matmul_julia_gpu_faster.jl"
 

@@ -73,7 +73,7 @@ bench_build_run "$name" "$MM_CAT" ::: \
     "$MM_SRC/cuda/matmul_cublas_cpp20.cu" -o "$MM_BIN/matmul_cublas_cpp20" ::: \
   "$MM_BIN/matmul_cublas_cpp20"
 
-# 6) Best Float32 SGEMM: hand-written register-tiled kernel vs cuBLAS.
+# 6) Best Float64 DGEMM: hand-written register-tiled kernel vs cuBLAS.
 #    One binary, two timed backends (selected by argv[1]).
 BEST_BIN="$MM_BIN/matmul_cuda_best"
 if build "${MM_CAT}__matmul_cuda_best" \
